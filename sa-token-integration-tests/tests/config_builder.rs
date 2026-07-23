@@ -165,3 +165,88 @@ async fn test_jwt_style_without_secret() {
         .build_config();
     assert!(config.jwt_secret_key.is_none());
 }
+
+// ── Wave-1 配置补齐测试（对齐 Java SaTokenConfig 完整字段集） ──
+
+#[tokio::test]
+async fn test_wave1_defaults_match_java() {
+    let config = SaTokenConfig::default();
+    // Java isLastingCookie = true
+    assert!(config.is_lasting_cookie);
+    // Java isWriteHeader = false
+    assert!(!config.is_write_header);
+    // Java isLogoutKeepFreezeOps = false
+    assert!(!config.is_logout_keep_freeze_ops);
+    // Java cookieAutoFillPrefix = false
+    assert!(!config.cookie_auto_fill_prefix);
+    // Java isPrint = true
+    assert!(config.is_print);
+    // Java logLevel = "trace"
+    assert_eq!(config.log_level, "trace");
+    // Java logLevelInt = 1
+    assert_eq!(config.log_level_int, 1);
+    // Java isColorLog = null
+    assert!(config.is_color_log.is_none());
+    // Java httpBasic = ""
+    assert_eq!(config.http_basic, "");
+    // Java httpDigest = ""
+    assert_eq!(config.http_digest, "");
+    // Java currDomain = null
+    assert!(config.curr_domain.is_none());
+    // Java sameTokenTimeout = 86400
+    assert_eq!(config.same_token_timeout, 86400);
+    // Java checkSameToken = false
+    assert!(!config.check_same_token);
+    // Java dataRefreshPeriod = 30
+    assert_eq!(config.data_refresh_period, 30);
+    // Java maxTryTimes = 12
+    assert_eq!(config.max_try_times, 12);
+}
+
+#[tokio::test]
+async fn test_wave1_builder_methods() {
+    let config = SaTokenConfig::builder()
+        .is_lasting_cookie(false)
+        .is_write_header(true)
+        .is_logout_keep_freeze_ops(true)
+        .cookie_auto_fill_prefix(true)
+        .is_print(false)
+        .log_level("info")
+        .log_level_int(3)
+        .is_color_log(Some(true))
+        .http_basic("sa:123456")
+        .http_digest("sa:123456")
+        .curr_domain("https://example.com")
+        .same_token_timeout(3600)
+        .check_same_token(true)
+        .data_refresh_period(60)
+        .max_try_times(20)
+        .build_config();
+    assert!(!config.is_lasting_cookie);
+    assert!(config.is_write_header);
+    assert!(config.is_logout_keep_freeze_ops);
+    assert!(config.cookie_auto_fill_prefix);
+    assert!(!config.is_print);
+    assert_eq!(config.log_level, "info");
+    assert_eq!(config.log_level_int, 3);
+    assert_eq!(config.is_color_log, Some(true));
+    assert_eq!(config.http_basic, "sa:123456");
+    assert_eq!(config.http_digest, "sa:123456");
+    assert_eq!(config.curr_domain.as_deref(), Some("https://example.com"));
+    assert_eq!(config.same_token_timeout, 3600);
+    assert!(config.check_same_token);
+    assert_eq!(config.data_refresh_period, 60);
+    assert_eq!(config.max_try_times, 20);
+}
+
+#[tokio::test]
+async fn test_token_prefix_default_none_and_set() {
+    // 默认 None
+    let config = SaTokenConfig::default();
+    assert!(config.token_prefix.is_none());
+    // 设置为 "Bearer "
+    let config = SaTokenConfig::builder()
+        .token_prefix("Bearer ")
+        .build_config();
+    assert_eq!(config.token_prefix.as_deref(), Some("Bearer "));
+}

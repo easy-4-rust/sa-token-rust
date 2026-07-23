@@ -45,7 +45,12 @@ pub struct SaTokenConfig {
     
     /// Token 风格（uuid、simple-uuid、random-32、random-64、random-128）
     pub token_style: TokenStyle,
-    
+
+    /// Token 前缀（HTTP header 中 token 值的固定前缀，例如 "Bearer "）。
+    /// 对应 Java `SaTokenConfig.tokenPrefix`。
+    /// 默认 None 表示无前缀，前端提交时直接传 token 值。
+    pub token_prefix: Option<String>,
+
     /// 是否输出操作日志
     pub is_log: bool,
     
@@ -113,6 +118,68 @@ pub struct SaTokenConfig {
 
     /// logout 时是否保留 Token-Session
     pub is_logout_keep_token_session: bool,
+
+    // ── 以下字段对齐 Java SaTokenConfig，补充 Wave-1 配置补齐 ──
+
+    /// 是否为持久 Cookie（临时 Cookie 在浏览器关闭时自动删除）
+    /// 对应 Java `isLastingCookie`，默认 true
+    pub is_lasting_cookie: bool,
+
+    /// 是否在登录后将 token 写入响应头
+    /// 对应 Java `isWriteHeader`，默认 false
+    pub is_write_header: bool,
+
+    /// 如果 token 已被冻结，是否保留其操作权（是否允许此 token 调用注销 API）
+    /// 对应 Java `isLogoutKeepFreezeOps`，默认 false
+    pub is_logout_keep_freeze_ops: bool,
+
+    /// Cookie 模式是否自动填充 token 前缀
+    /// 对应 Java `cookieAutoFillPrefix`，默认 false
+    pub cookie_auto_fill_prefix: bool,
+
+    /// 是否在初始化配置时在控制台打印版本字符画
+    /// 对应 Java `isPrint`，默认 true
+    pub is_print: bool,
+
+    /// 日志等级（trace/debug/info/warn/error/fatal）
+    /// 对应 Java `logLevel`，默认 "trace"
+    pub log_level: String,
+
+    /// 日志等级 int 值（1=trace, 2=debug, 3=info, 4=warn, 5=error, 6=fatal）
+    /// 对应 Java `logLevelInt`，默认 1
+    pub log_level_int: i32,
+
+    /// 是否打印彩色日志（None = 自动检测终端）
+    /// 对应 Java `isColorLog`，默认 None
+    pub is_color_log: Option<bool>,
+
+    /// Http Basic 认证的默认账号和密码，冒号隔开，例如 "sa:123456"
+    /// 对应 Java `httpBasic`，默认空字符串
+    pub http_basic: String,
+
+    /// Http Digest 认证的默认账号和密码
+    /// 对应 Java `httpDigest`，默认空字符串
+    pub http_digest: String,
+
+    /// 配置当前项目的网络访问地址
+    /// 对应 Java `currDomain`
+    pub curr_domain: Option<String>,
+
+    /// Same-Token 的有效期（秒），用于微服务 RPC 鉴权
+    /// 对应 Java `sameTokenTimeout`，默认 86400（1 天）
+    pub same_token_timeout: i64,
+
+    /// 是否校验 Same-Token（部分 rpc 插件有效）
+    /// 对应 Java `checkSameToken`，默认 false
+    pub check_same_token: bool,
+
+    /// 默认 DAO 实现中每次清理过期数据间隔的时间（秒）
+    /// 对应 Java `dataRefreshPeriod`，默认 30，-1 不启动定时清理
+    pub data_refresh_period: i32,
+
+    /// 在每次创建 token 时的最高循环次数，用于保证 token 唯一性
+    /// 对应 Java `maxTryTimes`，默认 12，-1 不循环尝试
+    pub max_try_times: i32,
 }
 
 impl Default for SaTokenConfig {
@@ -126,6 +193,7 @@ impl Default for SaTokenConfig {
             is_concurrent: true,
             is_share: false,
             token_style: TokenStyle::Uuid,
+            token_prefix: None,
             is_log: false,
             is_read_cookie: true,
             is_read_header: true,
@@ -148,6 +216,22 @@ impl Default for SaTokenConfig {
             token_session_check_login: true,
             logout_range: LogoutRange::Token,
             is_logout_keep_token_session: false,
+            // ── Wave-1 配置补齐 ──
+            is_lasting_cookie: true,
+            is_write_header: false,
+            is_logout_keep_freeze_ops: false,
+            cookie_auto_fill_prefix: false,
+            is_print: true,
+            log_level: "trace".to_string(),
+            log_level_int: 1,
+            is_color_log: None,
+            http_basic: String::new(),
+            http_digest: String::new(),
+            curr_domain: None,
+            same_token_timeout: 86400,
+            check_same_token: false,
+            data_refresh_period: 30,
+            max_try_times: 12,
         }
     }
 }
@@ -285,6 +369,13 @@ impl SaTokenConfigBuilder {
         self
     }
 
+    /// 设置 Token 前缀（HTTP header 中 token 值的固定前缀，例如 "Bearer "）。
+    /// 对应 Java `SaTokenConfig.setTokenPrefix(...)`。
+    pub fn token_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.config.token_prefix = Some(prefix.into());
+        self
+    }
+
 
     /// 设置存储键前缀（默认 "sa:"）
     ///
@@ -386,7 +477,99 @@ impl SaTokenConfigBuilder {
         self.config.is_logout_keep_token_session = keep;
         self
     }
-    
+
+    // ── Wave-1 配置补齐 builder ──
+
+    /// 设置是否为持久 Cookie（对应 Java `isLastingCookie`）
+    pub fn is_lasting_cookie(mut self, lasting: bool) -> Self {
+        self.config.is_lasting_cookie = lasting;
+        self
+    }
+
+    /// 设置是否在登录后写入响应头（对应 Java `isWriteHeader`）
+    pub fn is_write_header(mut self, write: bool) -> Self {
+        self.config.is_write_header = write;
+        self
+    }
+
+    /// 设置冻结 token 是否保留操作权（对应 Java `isLogoutKeepFreezeOps`）
+    pub fn is_logout_keep_freeze_ops(mut self, keep: bool) -> Self {
+        self.config.is_logout_keep_freeze_ops = keep;
+        self
+    }
+
+    /// 设置 Cookie 是否自动填充 token 前缀（对应 Java `cookieAutoFillPrefix`）
+    pub fn cookie_auto_fill_prefix(mut self, auto: bool) -> Self {
+        self.config.cookie_auto_fill_prefix = auto;
+        self
+    }
+
+    /// 设置是否打印启动字符画（对应 Java `isPrint`）
+    pub fn is_print(mut self, print: bool) -> Self {
+        self.config.is_print = print;
+        self
+    }
+
+    /// 设置日志等级（对应 Java `logLevel`）
+    pub fn log_level(mut self, level: impl Into<String>) -> Self {
+        self.config.log_level = level.into();
+        self
+    }
+
+    /// 设置日志等级 int 值（对应 Java `logLevelInt`）
+    pub fn log_level_int(mut self, level: i32) -> Self {
+        self.config.log_level_int = level;
+        self
+    }
+
+    /// 设置是否打印彩色日志（对应 Java `isColorLog`）
+    pub fn is_color_log(mut self, color: Option<bool>) -> Self {
+        self.config.is_color_log = color;
+        self
+    }
+
+    /// 设置 HTTP Basic 默认账密（对应 Java `httpBasic`）
+    pub fn http_basic(mut self, basic: impl Into<String>) -> Self {
+        self.config.http_basic = basic.into();
+        self
+    }
+
+    /// 设置 HTTP Digest 默认账密（对应 Java `httpDigest`）
+    pub fn http_digest(mut self, digest: impl Into<String>) -> Self {
+        self.config.http_digest = digest.into();
+        self
+    }
+
+    /// 设置当前项目网络地址（对应 Java `currDomain`）
+    pub fn curr_domain(mut self, domain: impl Into<String>) -> Self {
+        self.config.curr_domain = Some(domain.into());
+        self
+    }
+
+    /// 设置 Same-Token 超时时间（对应 Java `sameTokenTimeout`）
+    pub fn same_token_timeout(mut self, timeout: i64) -> Self {
+        self.config.same_token_timeout = timeout;
+        self
+    }
+
+    /// 设置是否校验 Same-Token（对应 Java `checkSameToken`）
+    pub fn check_same_token(mut self, check: bool) -> Self {
+        self.config.check_same_token = check;
+        self
+    }
+
+    /// 设置 DAO 过期数据清理间隔（对应 Java `dataRefreshPeriod`）
+    pub fn data_refresh_period(mut self, period: i32) -> Self {
+        self.config.data_refresh_period = period;
+        self
+    }
+
+    /// 设置 token 唯一性最大尝试次数（对应 Java `maxTryTimes`）
+    pub fn max_try_times(mut self, times: i32) -> Self {
+        self.config.max_try_times = times;
+        self
+    }
+
     /// 设置存储方式
     pub fn storage(mut self, storage: Arc<dyn SaStorage>) -> Self {
         self.storage = Some(storage);

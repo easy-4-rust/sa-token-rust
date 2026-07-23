@@ -35,6 +35,11 @@ pub mod online;
 pub mod distributed;
 pub mod sso;
 pub mod router;
+pub mod firewall;
+pub mod http_auth;
+pub mod same_token;
+pub mod api_security;
+pub mod constant_time;
 pub mod disable;
 pub mod safe;
 pub mod token_session;
@@ -81,3 +86,7 @@ pub use sso::{
 pub use router::{
     match_path, match_any, need_auth, PathAuthConfig, extract_token, run_auth_flow, AuthFlowResult,
 };
+pub use firewall::{FirewallStrategy, GlobalFirewall, is_path_valid, has_non_printable_ascii};
+pub use http_auth::{HttpBasicTemplate, HttpBasicAccount, HttpDigestTemplate, HttpDigestModel};
+pub use same_token::{SameTokenTemplate, TempTokenTemplate, SAME_TOKEN_HEADER, DEFAULT_TEMP_NAMESPACE};
+pub use api_security::{SignConfig, SignTemplate, ApiKeyModel, ApiKeyTemplate};

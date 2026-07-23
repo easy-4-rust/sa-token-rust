@@ -141,6 +141,39 @@ pub enum SaTokenError {
     
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    // ============ Firewall Errors | 防火墙错误 ============
+    #[error("Firewall check failed: {message}")]
+    FirewallCheck {
+        /// Error message describing what failed
+        message: String,
+    },
+
+    #[error("Request path invalid: {message} (path: {path})")]
+    RequestPathInvalid {
+        /// The invalid request path
+        path: String,
+        /// Error message
+        message: String,
+    },
+
+    #[error("Same-Token invalid: {0}")]
+    SameTokenInvalid(String),
+
+    #[error("HTTP Basic authentication failed")]
+    NotHttpBasicAuth,
+
+    #[error("HTTP Digest authentication failed")]
+    NotHttpDigestAuth,
+
+    #[error("API disabled")]
+    ApiDisabled,
+
+    #[error("Plugin error: {0}")]
+    PluginError(String),
+
+    #[error("Stop match (internal control flow)")]
+    StopMatch,
 }
 
 impl SaTokenError {
