@@ -103,6 +103,7 @@ members = [
     "sa-token-plugin-ntex-core",
     "sa-token-plugin-ntex-v212",
     "sa-token-plugin-tonic",
+    "sa-token-vernal",
     "examples/tonic-full-example",
 ]
 

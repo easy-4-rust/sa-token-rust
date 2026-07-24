@@ -157,6 +157,17 @@ sa-token-rust/
 - 请求/响应适配器
 - 从 Header/Cookie/Query 提取 Token
 - Bearer Token 支持
+
+### 5. **Vernal 应用上下文桥接**
+
+`sa-token-vernal` 是 Sa-Token-Rust 消费
+[句芒 · Vernal](https://github.com/easy-4-rust/vernal) 的桥接 crate。它把
+Vernal 拥有所有权的 HTTP 请求快照适配为 `SaRequest`，复用 `run_auth_flow`，
+写入只读 `SecurityPrincipal`，并用 `SaTokenContext` 包裹下游 Tokio Future。
+Vernal 不反向依赖 Sa-Token-Rust。
+
+Vernal 当前仍为 `0.0.0-dev`，所以该桥保持实验状态且暂不发布；详见
+[`sa-token-vernal/README.md`](sa-token-vernal/README.md)。
 - 在 `sa_token_core::router` 中共享的路径规则与认证流水线（如 `PathAuthConfig`、`run_auth_flow`），由各版本 layer / 中间件消费
 
 ## 🚀 快速开始
@@ -1245,4 +1256,3 @@ let is_admin = StpUtil::has_role("10001", "admin").await;
 ## 🙏 致谢
 
 本项目受 [sa-token](https://github.com/dromara/sa-token) Java 框架启发。
-

@@ -1,0 +1,26 @@
+[package]
+name = "sa-token-vernal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+publish = false
+description = "Consumer-owned Vernal bridge for Sa-Token-Rust authentication contexts"
+
+[dependencies]
+sa-token-adapter = { version = "0.1.18", path = "../sa-token-adapter" }
+sa-token-core = { version = "0.1.18", path = "../sa-token-core" }
+thiserror = { workspace = true }
+vernal-http = { git = "https://github.com/easy-4-rust/vernal.git", rev = "337add96e82e133adb5d4bee61bebb135c519290" }
+vernal-web = { git = "https://github.com/easy-4-rust/vernal.git", rev = "337add96e82e133adb5d4bee61bebb135c519290" }
+
+[dev-dependencies]
+http = { workspace = true }
+sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage-memory" }
+tokio = { workspace = true }
+tokio-util = "0.7"

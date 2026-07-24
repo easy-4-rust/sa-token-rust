@@ -1,0 +1,12 @@
+#![forbid(unsafe_code)]
+#![doc = "Sa-Token-Rust 消费 Vernal 请求上下文的框架中立桥接。"]
+
+mod vernal_authentication;
+mod vernal_sa_request;
+mod vernal_sa_token_bridge;
+mod vernal_sa_token_error;
+
+pub use vernal_authentication::VernalAuthentication;
+pub use vernal_sa_request::VernalSaRequest;
+pub use vernal_sa_token_bridge::VernalSaTokenBridge;
+pub use vernal_sa_token_error::VernalSaTokenError;

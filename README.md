@@ -132,6 +132,17 @@ All plugins provide:
 - Bearer token support
 - Shared path rules and auth pipeline helpers in `sa_token_core::router` (`PathAuthConfig`, `run_auth_flow`, etc.) consumed by versioned layers/middlewares
 
+### 5. **Vernal Application Context Bridge**
+
+`sa-token-vernal` is the consumer-owned bridge to
+[句芒 · Vernal](https://github.com/easy-4-rust/vernal). It adapts Vernal's
+owned HTTP request snapshot to `SaRequest`, reuses `run_auth_flow`, writes a
+read-only `SecurityPrincipal`, and scopes the downstream Tokio future with
+`SaTokenContext`. Vernal never depends back on Sa-Token-Rust.
+
+The bridge is currently experimental and unpublished because Vernal remains at
+`0.0.0-dev`; see [`sa-token-vernal/README.md`](sa-token-vernal/README.md).
+
 ## 🚀 Quick Start
 
 ### ⚡ Simplified Usage (Recommended)
@@ -1217,4 +1228,3 @@ at your option.
 ## 🙏 Acknowledgments
 
 This project is inspired by [sa-token](https://github.com/dromara/sa-token) Java framework.
-
