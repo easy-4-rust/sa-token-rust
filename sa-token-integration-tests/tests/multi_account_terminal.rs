@@ -11,7 +11,7 @@ fn stp_util_manager() -> Arc<sa_token_core::SaTokenManager> {
     static MGR: OnceLock<Arc<sa_token_core::SaTokenManager>> = OnceLock::new();
     MGR.get_or_init(|| {
         let mgr = setup::fresh_manager();
-        StpUtil::init_manager(mgr.as_ref().clone());
+        StpUtil::init_manager(mgr.as_ref().clone()).expect("initialize StpUtil");
         mgr
     })
     .clone()
@@ -47,8 +47,14 @@ async fn test_multi_account_isolation() {
         vec!["user:read".to_string()]
     );
 
-    assert_eq!(admin.get_terminal_list("10001", None).await.unwrap().len(), 1);
-    assert_eq!(user.get_terminal_list("10001", None).await.unwrap().len(), 1);
+    assert_eq!(
+        admin.get_terminal_list("10001", None).await.unwrap().len(),
+        1
+    );
+    assert_eq!(
+        user.get_terminal_list("10001", None).await.unwrap().len(),
+        1
+    );
 }
 
 #[tokio::test]
@@ -66,7 +72,11 @@ async fn test_terminal_end_to_end() {
         .unwrap();
 
     assert_eq!(
-        admin.get_terminal_list("10001", Some("PC")).await.unwrap().len(),
+        admin
+            .get_terminal_list("10001", Some("PC"))
+            .await
+            .unwrap()
+            .len(),
         1
     );
     assert_eq!(

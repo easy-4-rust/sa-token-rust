@@ -14,11 +14,11 @@ pub async fn demo_login_id_types() -> anyhow::Result<()> {
     
     let string_id = String::from("user_string");
     let token1 = StpUtil::login(string_id.as_str()).await?;
-    tracing::info!("✅ String 类型登录成功: ID={}, Token={}", string_id, token1.as_str());
+    tracing::info!(token_length = token1.as_str().len(), "✅ String 类型登录成功，身份与 Token 已脱敏");
     
     let str_id = "user_str";
     let token2 = StpUtil::login(str_id).await?;
-    tracing::info!("✅ &str 类型登录成功: ID={}, Token={}", str_id, token2.as_str());
+    tracing::info!(token_length = token2.as_str().len(), "✅ &str 类型登录成功，身份与 Token 已脱敏");
     
     // ==================== 2. 整数类型 ID ====================
     tracing::info!("\n2️⃣ 整数类型 ID");
@@ -26,22 +26,22 @@ pub async fn demo_login_id_types() -> anyhow::Result<()> {
     // i32
     let i32_id: i32 = 10001;
     let token3 = StpUtil::login(i32_id).await?;
-    tracing::info!("✅ i32 类型登录成功: ID={}, Token={}", i32_id, token3.as_str());
+    tracing::info!(token_length = token3.as_str().len(), "✅ i32 类型登录成功，身份与 Token 已脱敏");
     
     // i64
     let i64_id: i64 = 10002_i64;
     let token4 = StpUtil::login(i64_id).await?;
-    tracing::info!("✅ i64 类型登录成功: ID={}, Token={}", i64_id, token4.as_str());
+    tracing::info!(token_length = token4.as_str().len(), "✅ i64 类型登录成功，身份与 Token 已脱敏");
     
     // u32
     let u32_id: u32 = 10003;
     let token5 = StpUtil::login(u32_id).await?;
-    tracing::info!("✅ u32 类型登录成功: ID={}, Token={}", u32_id, token5.as_str());
+    tracing::info!(token_length = token5.as_str().len(), "✅ u32 类型登录成功，身份与 Token 已脱敏");
     
     // u64
     let u64_id: u64 = 10004_u64;
     let token6 = StpUtil::login(u64_id).await?;
-    tracing::info!("✅ u64 类型登录成功: ID={}, Token={}", u64_id, token6.as_str());
+    tracing::info!(token_length = token6.as_str().len(), "✅ u64 类型登录成功，身份与 Token 已脱敏");
     // ==================== 3. 权限和角色管理 ====================
     tracing::info!("\n3️⃣ 权限和角色管理（使用数字 ID）");
     

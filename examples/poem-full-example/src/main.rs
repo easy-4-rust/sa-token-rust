@@ -138,7 +138,7 @@ async fn main() -> Result<(), std::io::Error> {
         .storage(Arc::new(MemoryStorage::new()))
         .token_name("Authorization")
         .timeout(86400)  // 24小时
-        .build();
+        .build()?;
     
     // StpUtil 已在 build() 时自动初始化
     

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use sa_token_adapter::storage::SaStorage;
-use sa_token_core::{config::TokenStyle, SaTokenManager};
+use sa_token_core::{SaTokenManager, config::TokenStyle};
 
 /// Shared application state (register with [`rocket::manage`] in the v0.5 binding).
 #[derive(Clone)]
@@ -72,9 +72,10 @@ impl SaTokenStateBuilder {
         self
     }
 
-    pub fn build(self) -> SaTokenState {
-        SaTokenState {
-            manager: Arc::new(self.config_builder.build()),
-        }
+    pub fn build(self) -> sa_token_core::SaTokenResult<SaTokenState> {
+        let runtime = self.config_builder.build()?;
+        Ok(SaTokenState {
+            manager: runtime.manager().clone(),
+        })
     }
 }

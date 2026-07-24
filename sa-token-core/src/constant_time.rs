@@ -3,7 +3,10 @@
 //! Constant-time comparison utilities | 恒定时间比较工具
 //!
 //! Prevents timing attacks on secret/token/signature comparisons.
-//! 不依赖外部 crate，手动实现恒定时间比较。
+//! Uses the audited `subtle` primitive instead of maintaining custom
+//! cryptographic comparison code.
+
+use subtle::ConstantTimeEq;
 
 /// Constant-time equality check for two byte slices.
 ///
@@ -12,18 +15,10 @@
 ///
 /// # Important
 ///
-/// If lengths differ, it still performs a full scan to avoid
-/// leaking length information via timing.
+/// Secret lengths should be fixed by their protocol. A length mismatch is
+/// rejected by `subtle` before comparing contents.
 pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
-    // XOR all bytes; if lengths differ, result is non-zero
-    let max_len = a.len().max(b.len());
-    let mut result: u8 = (a.len() ^ b.len()) as u8;
-    for i in 0..max_len {
-        let byte_a = a.get(i).copied().unwrap_or(0);
-        let byte_b = b.get(i).copied().unwrap_or(0);
-        result |= byte_a ^ byte_b;
-    }
-    result == 0
+    bool::from(a.ct_eq(b))
 }
 
 /// Constant-time equality check for two strings.

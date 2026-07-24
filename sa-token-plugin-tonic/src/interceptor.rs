@@ -15,7 +15,7 @@ use crate::adapter::TonicCapturedRequest;
 use crate::error::{SaTokenBearerToken, SaTokenLoginId};
 use crate::state::SaTokenState;
 use sa_token_core::error::messages;
-use sa_token_core::router::{run_auth_flow, PathAuthConfig};
+use sa_token_core::router::{PathAuthConfig, run_auth_flow};
 
 // ============================================================================
 // 中文: gRPC 服务端拦截器
@@ -155,7 +155,11 @@ pub fn create_request_adapter(
     method: &str,
     path: &str,
 ) -> crate::adapter::TonicRequestAdapter {
-    crate::adapter::TonicRequestAdapter::from_metadata(metadata, method.to_string(), path.to_string())
+    crate::adapter::TonicRequestAdapter::from_metadata(
+        metadata,
+        method.to_string(),
+        path.to_string(),
+    )
 }
 
 // ============================================================================
@@ -211,9 +215,12 @@ mod tests {
         use sa_token_storage_memory::MemoryStorage;
         use std::sync::Arc;
 
-        let _state = SaTokenState::builder()
+        let state = SaTokenState::builder()
             .storage(Arc::new(MemoryStorage::new()))
-            .build();
+            .build()
+            .expect("build Tonic state");
+        sa_token_core::StpUtil::init_manager_arc(state.manager.clone())
+            .expect("explicitly install shared StpUtil manager");
 
         let login_id = "test_user";
         let _token = sa_token_core::StpUtil::login(login_id.to_string()).await;

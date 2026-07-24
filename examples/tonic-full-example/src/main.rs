@@ -74,9 +74,12 @@ impl auth::auth_service_server::AuthService for AuthServiceImpl {
             ));
         }
 
-        let token = self.state.manager.login(user_id).await.map_err(|e| {
-            Status::internal(format!("Login failed: {}", e))
-        })?;
+        let token = self
+            .state
+            .manager
+            .login(user_id)
+            .await
+            .map_err(|e| Status::internal(format!("Login failed: {}", e)))?;
 
         let permissions = sa_token_core::StpUtil::get_permissions(user_id).await;
         let roles = sa_token_core::StpUtil::get_roles(user_id).await;
@@ -105,7 +108,7 @@ impl auth::auth_service_server::AuthService for AuthServiceImpl {
         let login_id = get_login_id_from_request(&request)
             .ok_or_else(|| Status::unauthenticated("Not authenticated"))?;
 
-        tracing::info!("GetUserInfo request from user: {}", login_id);
+        tracing::info!("GetUserInfo request from authenticated user (identity omitted)");
 
         let permissions = sa_token_core::StpUtil::get_permissions(&login_id).await;
         let roles = sa_token_core::StpUtil::get_roles(&login_id).await;
@@ -126,7 +129,7 @@ impl auth::auth_service_server::AuthService for AuthServiceImpl {
         let login_id = get_login_id_from_request(&request)
             .ok_or_else(|| Status::unauthenticated("Not authenticated"))?;
 
-        tracing::info!("GetPermissions request from user: {}", login_id);
+        tracing::info!("GetPermissions request from authenticated user (identity omitted)");
 
         let permissions = sa_token_core::StpUtil::get_permissions(&login_id).await;
 
@@ -142,7 +145,7 @@ impl auth::auth_service_server::AuthService for AuthServiceImpl {
         let login_id = get_login_id_from_request(&request)
             .ok_or_else(|| Status::unauthenticated("Not authenticated"))?;
 
-        tracing::info!("GetRoles request from user: {}", login_id);
+        tracing::info!("GetRoles request from authenticated user (identity omitted)");
 
         let roles = sa_token_core::StpUtil::get_roles(&login_id).await;
 
@@ -214,7 +217,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .storage(Arc::new(sa_token_plugin_tonic::MemoryStorage::new()))
         .token_name("satoken")
         .timeout(86400)
-        .build();
+        .build()?;
 
     tracing::info!("SaToken state created");
 
@@ -242,7 +245,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Protected RPCs: GetUserInfo, GetPermissions, GetRoles");
 
     tonic::transport::Server::builder()
-        .layer(tower::ServiceBuilder::new().layer(grpc_auth_layer).into_inner())
+        .layer(
+            tower::ServiceBuilder::new()
+                .layer(grpc_auth_layer)
+                .into_inner(),
+        )
         .add_service(auth::auth_service_server::AuthServiceServer::new(
             AuthServiceImpl::new(sa_token_state.clone()),
         ))

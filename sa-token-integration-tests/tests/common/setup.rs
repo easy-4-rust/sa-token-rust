@@ -1,9 +1,8 @@
+#![allow(dead_code)]
+
 use std::sync::{Arc, OnceLock};
 
-use sa_token_core::{
-    SaTokenConfig, SaTokenManager, StpUtil,
-    config::TokenStyle,
-};
+use sa_token_core::{SaTokenConfig, SaTokenManager, StpUtil, config::TokenStyle};
 use sa_token_storage_memory::MemoryStorage;
 
 /// Create a default in-memory storage for tests.
@@ -83,7 +82,7 @@ pub fn shared_manager() -> Arc<SaTokenManager> {
             let storage = memory_storage();
             let config = default_config();
             let manager = SaTokenManager::new(storage, config);
-            StpUtil::init_manager(manager.clone());
+            StpUtil::init_manager(manager.clone()).expect("initialize shared StpUtil");
             Arc::new(manager)
         })
         .clone()

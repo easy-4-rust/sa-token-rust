@@ -65,7 +65,7 @@ pub async fn init_sa_token(redis_config: Option<&RedisConfig>) -> Result<Arc<SaT
     
     // 构建 SaTokenManager
     // Build SaTokenManager
-    let manager = config_builder.build();
+    let runtime = config_builder.build()?;
     
-    Ok(Arc::new(manager))
+    Ok(runtime.manager().clone())
 }

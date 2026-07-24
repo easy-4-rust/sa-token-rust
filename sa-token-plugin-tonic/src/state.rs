@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use sa_token_adapter::storage::SaStorage;
-use sa_token_core::{SaTokenConfig, SaTokenManager, StpUtil};
+use sa_token_core::{SaTokenConfig, SaTokenManager};
 
 /// 中文: Tonic gRPC 应用状态（框架无关）
 /// English: Tonic gRPC application state (framework-agnostic)
@@ -29,7 +29,6 @@ impl SaTokenState {
     /// 中文: 从已有的管理器创建状态
     /// English: Create state from an existing manager
     pub fn from_manager(manager: SaTokenManager) -> Self {
-        StpUtil::init_manager(manager.clone());
         Self {
             manager: Arc::new(manager),
         }
@@ -99,8 +98,6 @@ impl SaTokenStateBuilder {
         self
     }
 
-
-
     /// 中文: 设置 JWT 密钥
     /// English: Set JWT secret key
     pub fn jwt_secret_key(mut self, key: impl Into<String>) -> Self {
@@ -117,10 +114,10 @@ impl SaTokenStateBuilder {
 
     /// 中文: 构建 SaTokenState
     /// English: Build SaTokenState
-    pub fn build(self) -> SaTokenState {
-        let manager = self.config_builder.build();
-        SaTokenState {
-            manager: Arc::new(manager),
-        }
+    pub fn build(self) -> sa_token_core::SaTokenResult<SaTokenState> {
+        let runtime = self.config_builder.build()?;
+        Ok(SaTokenState {
+            manager: runtime.manager().clone(),
+        })
     }
 }

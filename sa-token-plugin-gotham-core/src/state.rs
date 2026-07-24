@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use sa_token_adapter::storage::SaStorage;
-use sa_token_core::{config::TokenStyle, SaTokenManager};
+use sa_token_core::{SaTokenManager, config::TokenStyle};
 
 /// Shared application state for the Gotham versioned binding.
 #[derive(Clone)]
@@ -67,16 +67,15 @@ impl SaTokenStateBuilder {
         self
     }
 
-
-
     pub fn jwt_secret_key(mut self, key: impl Into<String>) -> Self {
         self.config_builder = self.config_builder.jwt_secret_key(key);
         self
     }
 
-    pub fn build(self) -> SaTokenState {
-        SaTokenState {
-            manager: Arc::new(self.config_builder.build()),
-        }
+    pub fn build(self) -> sa_token_core::SaTokenResult<SaTokenState> {
+        let runtime = self.config_builder.build()?;
+        Ok(SaTokenState {
+            manager: runtime.manager().clone(),
+        })
     }
 }

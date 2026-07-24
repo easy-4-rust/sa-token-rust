@@ -2,22 +2,22 @@
 //
 //! Token 管理器 - sa-token 的核心入口
 
-use std::sync::Arc;
-use chrono::{DateTime, Duration, Utc};
-use sa_token_adapter::storage::SaStorage;
 use crate::config::{LogoutMode, ReplacedLoginExitMode, SaTokenConfig};
+use crate::distributed::DistributedSessionManager;
 use crate::error::{SaTokenError, SaTokenResult};
-use crate::token::{TokenInfo, TokenValue, TokenGenerator};
+use crate::event::{SaTokenEvent, SaTokenEventBus};
+use crate::nonce::NonceManager;
+use crate::online::OnlineManager;
+use crate::refresh::RefreshTokenManager;
+use crate::session::SaSession;
+use crate::stp_interface::StpInterface;
 use crate::token::map::{
     TOKEN_MAP_BE_REPLACED, TOKEN_MAP_KICK_OUT, is_kick_out_marker, is_replaced_marker,
 };
-use crate::session::SaSession;
-use crate::event::{SaTokenEventBus, SaTokenEvent};
-use crate::online::OnlineManager;
-use crate::distributed::DistributedSessionManager;
-use crate::nonce::NonceManager;
-use crate::refresh::RefreshTokenManager;
-use crate::stp_interface::StpInterface;
+use crate::token::{TokenGenerator, TokenInfo, TokenValue};
+use chrono::{DateTime, Duration, Utc};
+use sa_token_adapter::storage::SaStorage;
+use std::sync::Arc;
 
 /// sa-token 管理器
 #[derive(Clone)]
@@ -53,37 +53,38 @@ impl SaTokenManager {
         self.stp_interface = Some(iface);
         self
     }
-    
+
     pub fn with_online_manager(mut self, manager: Arc<OnlineManager>) -> Self {
         self.online_manager = Some(manager);
         self
     }
-    
+
     pub fn with_distributed_manager(mut self, manager: Arc<DistributedSessionManager>) -> Self {
         self.distributed_manager = Some(manager);
         self
     }
-    
+
     pub fn online_manager(&self) -> Option<&Arc<OnlineManager>> {
         self.online_manager.as_ref()
     }
-    
+
     pub fn distributed_manager(&self) -> Option<&Arc<DistributedSessionManager>> {
         self.distributed_manager.as_ref()
     }
-    
+
     /// 获取事件总线的引用
     pub fn event_bus(&self) -> &SaTokenEventBus {
         &self.event_bus
     }
-    
+
     /// 登录：为指定账号创建 token
     pub async fn login(&self, login_id: impl Into<String>) -> SaTokenResult<TokenValue> {
-        self.login_with_options(login_id, None, None, None, None, None).await
+        self.login_with_options(login_id, None, None, None, None, None)
+            .await
     }
-    
+
     /// 登录：为指定账号创建 token（支持自定义 TokenInfo 字段）
-    /// 
+    ///
     /// # 参数 | Parameters
     /// * `login_id` - 登录用户 ID | Login user ID
     /// * `login_type` - 登录类型（如 "user", "admin"）| Login type (e.g., "user", "admin")
@@ -91,7 +92,7 @@ impl SaTokenManager {
     /// * `extra_data` - 额外数据 | Extra data
     /// * `nonce` - 防重放攻击的一次性令牌 | One-time token for replay attack prevention
     /// * `expire_time` - 自定义过期时间（如果为 None，则使用配置的过期时间）| Custom expiration time (if None, use configured timeout)
-    /// 
+    ///
     /// # 示例 | Example
     /// ```rust,ignore
     /// let token = manager.login_with_options(
@@ -113,49 +114,51 @@ impl SaTokenManager {
         expire_time: Option<DateTime<Utc>>,
     ) -> SaTokenResult<TokenValue> {
         let login_id = login_id.into();
-        
+
         // 生成 token（支持 JWT，如果有 extra_data 则签入 token）
         let token = match &extra_data {
-            Some(extra) => TokenGenerator::generate_with_login_id_and_extra(&self.config, &login_id, extra),
+            Some(extra) => {
+                TokenGenerator::generate_with_login_id_and_extra(&self.config, &login_id, extra)
+            }
             None => TokenGenerator::generate_with_login_id(&self.config, &login_id),
-        };
-        
+        }?;
+
         // 创建 token 信息
         let mut token_info = TokenInfo::new(token.clone(), login_id.clone());
-        
+
         // 设置登录类型
         token_info.login_type = login_type.unwrap_or_else(|| "default".to_string());
-        
+
         // 设置设备标识
         if let Some(device_str) = device {
             token_info.device = Some(device_str);
         }
-        
+
         // 设置额外数据
         if let Some(extra) = extra_data {
             token_info.extra_data = Some(extra);
         }
-        
+
         // 设置 nonce
         if let Some(nonce_str) = nonce {
             token_info.nonce = Some(nonce_str);
         }
-        
+
         // 设置过期时间
         if let Some(custom_expire_time) = expire_time {
             token_info.expire_time = Some(custom_expire_time);
         }
         // 注意：如果 expire_time 为 None，login_with_token_info 会自动使用配置的过期时间
-        
+
         // 调用底层方法
         self.login_with_token_info(token_info).await
     }
-    
+
     /// 登录：使用完整的 TokenInfo 对象创建 token
-    /// 
+    ///
     /// # 参数 | Parameters
     /// * `token_info` - 完整的 TokenInfo 对象，包含所有 token 信息 | Complete TokenInfo object containing all token information
-    /// 
+    ///
     /// # 说明 | Notes
     /// * TokenInfo 中的 `token` 字段将被使用（如果已设置），否则会自动生成
     /// * TokenInfo 中的 `login_id` 字段必须设置
@@ -163,12 +166,12 @@ impl SaTokenManager {
     /// * The `token` field in TokenInfo will be used (if set), otherwise will be auto-generated
     /// * The `login_id` field in TokenInfo must be set
     /// * If `expire_time` is None, will use configured timeout
-    /// 
+    ///
     /// # 示例 | Example
     /// ```rust,ignore
     /// use sa_token_core::token::{TokenInfo, TokenValue};
     /// use chrono::Utc;
-    /// 
+    ///
     /// let mut token_info = TokenInfo::new(
     ///     TokenValue::new("custom_token_123"),
     ///     "user_123"
@@ -176,75 +179,81 @@ impl SaTokenManager {
     /// token_info.login_type = "admin".to_string();
     /// token_info.device = Some("iPhone".to_string());
     /// token_info.extra_data = Some(json!({"ip": "192.168.1.1"}));
-    /// 
+    ///
     /// let token = manager.login_with_token_info(token_info).await?;
     /// ```
-    pub async fn login_with_token_info(&self, mut token_info: TokenInfo) -> SaTokenResult<TokenValue> {
+    pub async fn login_with_token_info(
+        &self,
+        mut token_info: TokenInfo,
+    ) -> SaTokenResult<TokenValue> {
         let login_id = token_info.login_id.clone();
-        
+
         // 如果 token_info 中没有 token，则生成一个
         let token = if token_info.token.as_str().is_empty() {
-            TokenGenerator::generate_with_login_id(&self.config, &login_id)
+            TokenGenerator::generate_with_login_id(&self.config, &login_id)?
         } else {
             token_info.token.clone()
         };
-        
+
         // 更新 token_info 中的 token
         token_info.token = token.clone();
-        
+
         // 更新最后活跃时间为当前时间
         token_info.update_active_time();
-        
+
         // 如果过期时间为 None，使用配置的过期时间
         let now = Utc::now();
         if token_info.expire_time.is_none()
-            && let Some(timeout) = self.config.timeout_duration() {
-                token_info.expire_time = Some(now + Duration::from_std(timeout).unwrap());
-            }
-        
+            && let Some(timeout) = self.config.timeout_duration()
+        {
+            token_info.expire_time = Some(now + Duration::from_std(timeout).unwrap());
+        }
+
         // 确保登录类型不为空
         if token_info.login_type.is_empty() {
             token_info.login_type = "default".to_string();
         }
-        
+
         // 计算 login_id -> token 映射键（非并发踢旧与写入映射均依赖此键）
         let login_token_key = self.login_token_mapping_key(&login_id, &token_info.login_type);
 
         // is_share：同 login_id + login_type 复用已有 token
-        if self.config.is_share {
-            if let Ok(Some(existing)) = self.storage.get(&login_token_key).await {
-                let existing_token = TokenValue::new(existing);
-                if self.is_valid(&existing_token).await {
-                    return Ok(existing_token);
-                }
+        if self.config.is_share
+            && let Ok(Some(existing)) = self.storage.get(&login_token_key).await
+        {
+            let existing_token = TokenValue::new(existing);
+            if self.is_valid(&existing_token).await {
+                return Ok(existing_token);
             }
         }
 
         // 启用 nonce 时：登录前校验并消费一次性 nonce，防止重放
         if self.config.enable_nonce
-            && let Some(ref nonce_str) = token_info.nonce {
-                let nonce_timeout = if self.config.nonce_timeout > 0 {
-                    self.config.nonce_timeout
-                } else {
-                    self.config.timeout
-                };
-                let nonce_mgr = NonceManager::new(self.storage.clone(), nonce_timeout);
-                nonce_mgr.validate_and_consume(nonce_str, &login_id).await?;
-            }
+            && let Some(ref nonce_str) = token_info.nonce
+        {
+            let nonce_timeout = if self.config.nonce_timeout > 0 {
+                self.config.nonce_timeout
+            } else {
+                self.config.timeout
+            };
+            let nonce_mgr = NonceManager::new(self.storage.clone(), nonce_timeout);
+            nonce_mgr.validate_and_consume(nonce_str, &login_id).await?;
+        }
 
         // 非并发登录：顶旧 token（replaced）或拒绝新登录
         if !self.config.is_concurrent
             && let Ok(Some(old_token)) = self.storage.get(&login_token_key).await
-            && old_token != token.as_str() {
-                match self.config.replaced_login_exit_mode {
-                    ReplacedLoginExitMode::OldDevice => {
-                        self.replaced_by_token(&TokenValue::new(old_token)).await?;
-                    }
-                    ReplacedLoginExitMode::NewDevice => {
-                        return Err(SaTokenError::AccountReplaced);
-                    }
+            && old_token != token.as_str()
+        {
+            match self.config.replaced_login_exit_mode {
+                ReplacedLoginExitMode::OldDevice => {
+                    self.replaced_by_token(&TokenValue::new(old_token)).await?;
+                }
+                ReplacedLoginExitMode::NewDevice => {
+                    return Err(SaTokenError::AccountReplaced);
                 }
             }
+        }
 
         // 启用 Refresh Token 时预生成并写入 TokenInfo
         let refresh_mgr = if self.config.enable_refresh_token {
@@ -259,26 +268,33 @@ impl SaTokenManager {
             let rt = mgr.generate(&login_id);
             token_info.refresh_token = Some(rt);
             if self.config.refresh_token_timeout > 0 {
-                token_info.refresh_token_expire_time = Some(
-                    Utc::now() + Duration::seconds(self.config.refresh_token_timeout),
-                );
+                token_info.refresh_token_expire_time =
+                    Some(Utc::now() + Duration::seconds(self.config.refresh_token_timeout));
             }
         }
-        
+
         // 存储 token 信息
         let key = self.config.make_key("token:", token.as_str());
-        let value = serde_json::to_string(&token_info)
-            .map_err(SaTokenError::SerializationError)?;
-        
-        self.storage.set(&key, &value, self.config.timeout_duration()).await
+        let value = serde_json::to_string(&token_info).map_err(SaTokenError::SerializationError)?;
+
+        self.storage
+            .set(&key, &value, self.config.timeout_duration())
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
-        
+
         // 保存 login_id 到 token 的映射
-        self.storage.set(&login_token_key, token.as_str(), self.config.timeout_duration()).await
+        self.storage
+            .set(
+                &login_token_key,
+                token.as_str(),
+                self.config.timeout_duration(),
+            )
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         // token -> login_id 反向映射（kickout/replaced 标记依赖此键）
-        self.save_token_id_mapping(token.as_str(), &login_id).await?;
+        self.save_token_id_mapping(token.as_str(), &login_id)
+            .await?;
 
         let account_ns = self.account_ns(&token_info.login_type, &login_id);
 
@@ -308,40 +324,53 @@ impl SaTokenManager {
 
         // 持久化 refresh token 与 access token 的关联
         if let Some(ref mgr) = refresh_mgr
-            && let Some(ref rt) = token_info.refresh_token {
-                mgr.store_with_extra(
-                    rt,
-                    token.as_str(),
-                    &login_id,
-                    token_info.extra_data.as_ref(),
-                )
-                .await?;
-            }
-        
+            && let Some(ref rt) = token_info.refresh_token
+        {
+            mgr.store_with_extra(
+                rt,
+                token.as_str(),
+                &login_id,
+                token_info.extra_data.as_ref(),
+            )
+            .await?;
+        }
+
         // 触发登录事件
         let event = SaTokenEvent::login(login_id.clone(), token.as_str())
             .with_login_type(&token_info.login_type);
         self.event_bus.publish(event).await;
-        
+
         Ok(token)
     }
-    
+
     /// 登出：删除指定 token（LOGOUT 模式）
     pub async fn logout(&self, token: &TokenValue) -> SaTokenResult<()> {
-        self.logout_internal(token, LogoutMode::Logout, self.config.is_logout_keep_token_session)
-            .await
+        self.logout_internal(
+            token,
+            LogoutMode::Logout,
+            self.config.is_logout_keep_token_session,
+        )
+        .await
     }
 
     /// 踢人下线（KICKOUT 模式：保留映射标记 -5）
     pub async fn kick_out_by_token(&self, token: &TokenValue) -> SaTokenResult<()> {
-        self.logout_internal(token, LogoutMode::KickOut, self.config.is_logout_keep_token_session)
-            .await
+        self.logout_internal(
+            token,
+            LogoutMode::KickOut,
+            self.config.is_logout_keep_token_session,
+        )
+        .await
     }
 
     /// 顶号下线（REPLACED 模式：保留映射标记 -4）
     pub async fn replaced_by_token(&self, token: &TokenValue) -> SaTokenResult<()> {
-        self.logout_internal(token, LogoutMode::Replaced, self.config.is_logout_keep_token_session)
-            .await
+        self.logout_internal(
+            token,
+            LogoutMode::Replaced,
+            self.config.is_logout_keep_token_session,
+        )
+        .await
     }
 
     async fn logout_internal(
@@ -350,7 +379,11 @@ impl SaTokenManager {
         mode: LogoutMode,
         keep_token_session: bool,
     ) -> SaTokenResult<()> {
-        tracing::debug!("Manager: logout_internal mode={:?}, token={}", mode, token);
+        tracing::debug!(
+            operation = "logout_internal",
+            mode = ?mode,
+            "processing token lifecycle operation"
+        );
 
         let key = self.config.make_key("token:", token.as_str());
         let token_info_str = self
@@ -396,43 +429,39 @@ impl SaTokenManager {
         if let Some(info) = token_info {
             let account_ns = self.account_ns(&info.login_type, &info.login_id);
 
-            if let Ok(mut session) = self.get_session(&account_ns).await {
-                if session.remove_terminal(token.as_str()).is_some() {
-                    if session.terminal_count() == 0 && mode != LogoutMode::Replaced {
-                        let _ = self.delete_session(&account_ns).await;
-                    } else {
-                        let _ = self.save_session(&session).await;
-                    }
+            if let Ok(mut session) = self.get_session(&account_ns).await
+                && session.remove_terminal(token.as_str()).is_some()
+            {
+                if session.terminal_count() == 0 && mode != LogoutMode::Replaced {
+                    let _ = self.delete_session(&account_ns).await;
+                } else {
+                    let _ = self.save_session(&session).await;
                 }
             }
 
-            let login_token_key =
-                self.login_token_mapping_key(&info.login_id, &info.login_type);
+            let login_token_key = self.login_token_mapping_key(&info.login_id, &info.login_type);
             if mode == LogoutMode::Logout {
                 if let Ok(Some(mapped)) = self.storage.get(&login_token_key).await
-                    && mapped == token.as_str() {
-                        let _ = self.storage.delete(&login_token_key).await;
-                    }
+                    && mapped == token.as_str()
+                {
+                    let _ = self.storage.delete(&login_token_key).await;
+                }
                 let _ = self.remove_token_index(&account_ns, token.as_str()).await;
             }
 
             if let Some(online_mgr) = &self.online_manager {
-                online_mgr.mark_offline(&info.login_id, token.as_str()).await;
+                online_mgr
+                    .mark_offline(&info.login_id, token.as_str())
+                    .await;
             }
 
             let event = match mode {
-                LogoutMode::Logout => {
-                    SaTokenEvent::logout(&info.login_id, token.as_str())
-                        .with_login_type(&info.login_type)
-                }
-                LogoutMode::KickOut => {
-                    SaTokenEvent::kick_out(&info.login_id, token.as_str())
-                        .with_login_type(&info.login_type)
-                }
-                LogoutMode::Replaced => {
-                    SaTokenEvent::replaced(&info.login_id, token.as_str())
-                        .with_login_type(&info.login_type)
-                }
+                LogoutMode::Logout => SaTokenEvent::logout(&info.login_id, token.as_str())
+                    .with_login_type(&info.login_type),
+                LogoutMode::KickOut => SaTokenEvent::kick_out(&info.login_id, token.as_str())
+                    .with_login_type(&info.login_type),
+                LogoutMode::Replaced => SaTokenEvent::replaced(&info.login_id, token.as_str())
+                    .with_login_type(&info.login_type),
             };
             self.event_bus.publish(event).await;
         } else if let Some(id) = login_id {
@@ -446,7 +475,7 @@ impl SaTokenManager {
 
         Ok(())
     }
-    
+
     /// 根据登录 ID 登出所有 token
     pub async fn logout_by_login_id(&self, login_id: &str) -> SaTokenResult<()> {
         // 优先使用多设备索引精确登出，避免依赖 keys 全表扫描
@@ -461,24 +490,24 @@ impl SaTokenManager {
 
         // 回退：全量扫描 token 键（依赖 storage.keys，Redis 需实现 keys）
         let token_prefix = format!("{}token:", self.config.key_prefix());
-        
+
         if let Ok(keys) = self.storage.keys(&format!("{}*", token_prefix)).await {
             for key in keys {
-                if let Ok(Some(token_info_str)) = self.storage.get(&key).await {
-                    if let Ok(token_info) = serde_json::from_str::<TokenInfo>(&token_info_str) {
-                        let ti_ns = self.account_ns(&token_info.login_type, &token_info.login_id);
-                        if ti_ns == login_id {
-                            let token_str = key[token_prefix.len()..].to_string();
-                            let _ = self.logout(&TokenValue::new(token_str)).await;
-                        }
+                if let Ok(Some(token_info_str)) = self.storage.get(&key).await
+                    && let Ok(token_info) = serde_json::from_str::<TokenInfo>(&token_info_str)
+                {
+                    let ti_ns = self.account_ns(&token_info.login_type, &token_info.login_id);
+                    if ti_ns == login_id {
+                        let token_str = key[token_prefix.len()..].to_string();
+                        let _ = self.logout(&TokenValue::new(token_str)).await;
                     }
                 }
             }
         }
-        
+
         Ok(())
     }
-    
+
     /// 获取 token 信息
     pub async fn get_token_info(&self, token: &TokenValue) -> SaTokenResult<TokenInfo> {
         if let Some(mapped) = self.get_token_id_mapping(token.as_str()).await? {
@@ -491,13 +520,16 @@ impl SaTokenManager {
         }
 
         let key = self.config.make_key("token:", token.as_str());
-        let value = self.storage.get(&key).await
+        let value = self
+            .storage
+            .get(&key)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?
             .ok_or(SaTokenError::TokenNotFound)?;
-        
-        let token_info: TokenInfo = serde_json::from_str(&value)
-            .map_err(SaTokenError::SerializationError)?;
-        
+
+        let token_info: TokenInfo =
+            serde_json::from_str(&value).map_err(SaTokenError::SerializationError)?;
+
         // 检查是否过期
         if token_info.is_expired() {
             self.logout(token).await?;
@@ -508,7 +540,7 @@ impl SaTokenManager {
         if token_info.is_freeze(self.config.active_timeout) {
             return Err(SaTokenError::TokenInactive);
         }
-        
+
         // 自动续签：刷新 last_active_time 并延长 token TTL（对齐 Java updateLastActiveToNow + autoRenew）
         if self.config.auto_renew {
             let renew_timeout = if self.config.active_timeout > 0 {
@@ -520,8 +552,7 @@ impl SaTokenManager {
             let mut renewed = token_info.clone();
             renewed.update_active_time();
             if renew_timeout > 0 {
-                renewed.expire_time =
-                    Some(Utc::now() + Duration::seconds(renew_timeout));
+                renewed.expire_time = Some(Utc::now() + Duration::seconds(renew_timeout));
             }
 
             let key = self.config.make_key("token:", token.as_str());
@@ -535,50 +566,56 @@ impl SaTokenManager {
             }
             return Ok(renewed);
         }
-        
+
         Ok(token_info)
     }
-    
+
     /// 检查 token 是否有效
     pub async fn is_valid(&self, token: &TokenValue) -> bool {
         self.get_token_info(token).await.is_ok()
     }
-    
+
     /// 获取 session
     pub async fn get_session(&self, login_id: &str) -> SaTokenResult<SaSession> {
         let key = self.config.make_key("session:", login_id);
-        let value = self.storage.get(&key).await
+        let value = self
+            .storage
+            .get(&key)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
-        
+
         if let Some(value) = value {
-            let session: SaSession = serde_json::from_str(&value)
-                .map_err(SaTokenError::SerializationError)?;
+            let session: SaSession =
+                serde_json::from_str(&value).map_err(SaTokenError::SerializationError)?;
             Ok(session)
         } else {
             Ok(SaSession::new(login_id))
         }
     }
-    
+
     /// 保存 session
     pub async fn save_session(&self, session: &SaSession) -> SaTokenResult<()> {
         let key = self.config.make_key("session:", &session.id);
-        let value = serde_json::to_string(session)
-            .map_err(SaTokenError::SerializationError)?;
-        
-        self.storage.set(&key, &value, None).await
+        let value = serde_json::to_string(session).map_err(SaTokenError::SerializationError)?;
+
+        self.storage
+            .set(&key, &value, None)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
-        
+
         Ok(())
     }
-    
+
     /// 删除 session
     pub async fn delete_session(&self, login_id: &str) -> SaTokenResult<()> {
         let key = self.config.make_key("session:", login_id);
-        self.storage.delete(&key).await
+        self.storage
+            .delete(&key)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
         Ok(())
     }
-    
+
     /// 续期 token（重置过期时间）
     pub async fn renew_timeout(
         &self,
@@ -586,9 +623,10 @@ impl SaTokenManager {
         timeout_seconds: i64,
     ) -> SaTokenResult<()> {
         let token_info = self.get_token_info(token).await?;
-        self.renew_timeout_internal(token, timeout_seconds, &token_info).await
+        self.renew_timeout_internal(token, timeout_seconds, &token_info)
+            .await
     }
-    
+
     /// 内部续期方法（避免递归调用 get_token_info）
     async fn renew_timeout_internal(
         &self,
@@ -597,24 +635,26 @@ impl SaTokenManager {
         token_info: &TokenInfo,
     ) -> SaTokenResult<()> {
         let mut new_token_info = token_info.clone();
-        
+
         // 设置新的过期时间
-        use chrono::{Utc, Duration};
+        use chrono::{Duration, Utc};
         let new_expire_time = Utc::now() + Duration::seconds(timeout_seconds);
         new_token_info.expire_time = Some(new_expire_time);
-        
+
         // 保存更新后的 token 信息
         let key = self.config.make_key("token:", token.as_str());
-        let value = serde_json::to_string(&new_token_info)
-            .map_err(SaTokenError::SerializationError)?;
-        
+        let value =
+            serde_json::to_string(&new_token_info).map_err(SaTokenError::SerializationError)?;
+
         let timeout = std::time::Duration::from_secs(timeout_seconds as u64);
-        self.storage.set(&key, &value, Some(timeout)).await
+        self.storage
+            .set(&key, &value, Some(timeout))
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
-        
+
         Ok(())
     }
-    
+
     /// 踢人下线（按 login_id，对该账号所有 token 执行 KICKOUT）
     pub async fn kick_out(&self, login_id: &str) -> SaTokenResult<()> {
         if let Some(online_mgr) = &self.online_manager {
@@ -824,11 +864,8 @@ impl SaTokenManager {
         login_id: &str,
         permissions: Vec<String>,
     ) -> SaTokenResult<()> {
-        self.save_string_list(
-            &self.permission_key_ns(login_type, login_id),
-            &permissions,
-        )
-        .await
+        self.save_string_list(&self.permission_key_ns(login_type, login_id), &permissions)
+            .await
     }
 
     pub async fn get_roles_with_type(
@@ -879,8 +916,13 @@ impl SaTokenManager {
 
     /// 覆盖设置用户权限列表
     /// 会完全替换该用户的所有权限
-    pub async fn set_permissions(&self, login_id: &str, permissions: Vec<String>) -> SaTokenResult<()> {
-        self.save_string_list(&self.permission_key(login_id), &permissions).await
+    pub async fn set_permissions(
+        &self,
+        login_id: &str,
+        permissions: Vec<String>,
+    ) -> SaTokenResult<()> {
+        self.save_string_list(&self.permission_key(login_id), &permissions)
+            .await
     }
 
     /// 获取用户全部权限列表
@@ -929,7 +971,8 @@ impl SaTokenManager {
     /// 覆盖设置用户角色列表
     /// 会完全替换该用户的所有角色
     pub async fn set_roles(&self, login_id: &str, roles: Vec<String>) -> SaTokenResult<()> {
-        self.save_string_list(&self.role_key(login_id), &roles).await
+        self.save_string_list(&self.role_key(login_id), &roles)
+            .await
     }
 
     /// 获取用户全部角色列表
@@ -979,8 +1022,8 @@ impl SaTokenManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sa_token_storage_memory::MemoryStorage;
     use crate::config::{LogoutMode, TokenStyle};
+    use sa_token_storage_memory::MemoryStorage;
 
     fn make_manager(is_concurrent: bool, auto_renew: bool, active_timeout: i64) -> SaTokenManager {
         let config = SaTokenConfig {
@@ -1020,10 +1063,8 @@ mod tests {
         let t1 = mgr.login("user_1").await.unwrap();
         let t2 = mgr.login("user_1").await.unwrap();
         let idx_key = mgr.config.make_key("login:tokens:", "user_1");
-        let list: Vec<String> = serde_json::from_str(
-            &mgr.storage.get(&idx_key).await.unwrap().unwrap(),
-        )
-        .unwrap();
+        let list: Vec<String> =
+            serde_json::from_str(&mgr.storage.get(&idx_key).await.unwrap().unwrap()).unwrap();
         assert_eq!(list.len(), 2);
         assert!(list.contains(&t1.as_str().to_string()));
         assert!(list.contains(&t2.as_str().to_string()));

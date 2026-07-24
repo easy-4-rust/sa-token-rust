@@ -14,11 +14,25 @@ description = "A powerful Rust authentication and authorization framework"
 [dependencies]
 sa-token-core = { version = "0.1.18", path = "./sa-token-core" }
 sa-token-storage-memory = { version = "0.1.18", path = "./sa-token-storage-memory" }
+sa-token-plugin-apikey = { version = "0.1.18", path = "./sa_token_plugin_apikey", optional = true }
+sa-token-plugin-jwt = { version = "0.1.18", path = "./sa_token_plugin_jwt", optional = true }
+sa-token-plugin-oauth2 = { version = "0.1.18", path = "./sa_token_plugin_oauth2", optional = true }
+sa-token-plugin-sso = { version = "0.1.18", path = "./sa_token_plugin_sso", optional = true }
+sa-token-plugin-observability = { version = "0.1.18", path = "./sa_token_plugin_observability", optional = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+
+[features]
+default = []
+plugin-apikey = ["dep:sa-token-plugin-apikey"]
+plugin-jwt = ["dep:sa-token-plugin-jwt"]
+plugin-oauth2 = ["dep:sa-token-plugin-oauth2"]
+plugin-sso = ["dep:sa-token-plugin-sso"]
+plugin-observability = ["dep:sa-token-plugin-observability"]
+security-plugins = ["plugin-apikey", "plugin-jwt", "plugin-oauth2", "plugin-sso"]
 
 [[example]]
 name = "event_listener_example"
@@ -61,6 +75,13 @@ members = [
     "sa-token-storage-memory",
     "sa-token-storage-redis",
     "sa-token-storage-database",
+    "sa_token_plugin_apikey",
+    "sa_token_plugin_jwt",
+    "sa_token_plugin_oauth2",
+    "sa_token_plugin_sso",
+    "sa_token_plugin_observability",
+    "sa_token_diagnostics",
+    "sa-token-performance-tests",
     "sa-token-plugin-axum",
     "sa-token-plugin-actix-web",
     "sa-token-plugin-actix-web-core",
@@ -130,6 +151,7 @@ jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
 # 加密
 sha2 = "0.11.0"
 bcrypt = "0.19.1"
+getrandom = "0.3.4"
 
 # 时间处理
 chrono = { version = "0.4.44", features = ["serde"] }
@@ -140,6 +162,16 @@ redis = { version = "1.2.1", features = ["tokio-comp", "connection-manager"] }
 # 日志
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+metrics = "0.24.6"
+metrics-util = "0.20.4"
+tracing-opentelemetry = "0.33.0"
+console-subscriber = "0.5.0"
+pprof = "0.15.0"
+dhat = "0.3.3"
+criterion = { version = "0.8.2", features = ["async_tokio"] }
+gungraun = "0.19.4"
+tikv-jemallocator = "0.7.0"
+tikv-jemalloc-ctl = { version = "0.7.0", features = ["stats"] }
 
 # HTTP（通用）
 http = "1.4.0"
@@ -179,3 +211,13 @@ sa-token-plugin-salvo-v079 = { path = "sa-token-plugin-salvo-v079" }
 sa-token-plugin-tide = { path = "sa-token-plugin-tide" }
 sa-token-plugin-warp = { path = "sa-token-plugin-warp" }
 sa-token-plugin-tonic = { path = "sa-token-plugin-tonic" }
+sa-token-plugin-apikey = { path = "sa_token_plugin_apikey" }
+sa-token-plugin-jwt = { path = "sa_token_plugin_jwt" }
+sa-token-plugin-oauth2 = { path = "sa_token_plugin_oauth2" }
+sa-token-plugin-sso = { path = "sa_token_plugin_sso" }
+sa-token-plugin-observability = { path = "sa_token_plugin_observability" }
+
+[profile.profiling]
+inherits = "release"
+debug = "full"
+strip = "none"

@@ -77,8 +77,6 @@ impl SaTokenStateBuilder {
         self
     }
 
-
-
     pub fn jwt_secret_key(mut self, key: impl Into<String>) -> Self {
         self.config_builder = self.config_builder.jwt_secret_key(key);
         self
@@ -89,10 +87,10 @@ impl SaTokenStateBuilder {
         self
     }
 
-    pub fn build(self) -> SaTokenState {
-        let manager = self.config_builder.build();
-        SaTokenState {
-            manager: Arc::new(manager),
-        }
+    pub fn build(self) -> sa_token_core::SaTokenResult<SaTokenState> {
+        let runtime = self.config_builder.build()?;
+        Ok(SaTokenState {
+            manager: runtime.manager().clone(),
+        })
     }
 }

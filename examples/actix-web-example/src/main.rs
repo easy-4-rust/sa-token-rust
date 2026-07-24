@@ -255,7 +255,7 @@ async fn user_info(
 
     match token_value {
         Ok(token) => {
-            tracing::info!(" token() 返回值: {}", token);
+            tracing::info!(token_length = token.as_str().len(), "token() 返回成功，值已脱敏");
         }
         Err(e) => {
             tracing::warn!("⚠️ token() failed: {}", e);

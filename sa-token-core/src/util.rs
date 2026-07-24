@@ -20,14 +20,14 @@
 //! StpUtil::set_permissions(10001, vec!["user:list".to_string()]).await?;
 //! ```
 
-use std::sync::Arc;
-use std::fmt::Display;
-use std::sync::OnceLock;
-use crate::{SaTokenManager, SaTokenResult, SaTokenError};
-use crate::token::{TokenValue, TokenInfo};
-use crate::session::SaSession;
 use crate::context::SaTokenContext;
 use crate::event::{SaTokenEventBus, SaTokenListener};
+use crate::session::SaSession;
+use crate::token::{TokenInfo, TokenValue};
+use crate::{SaTokenError, SaTokenManager, SaTokenResult};
+use std::fmt::Display;
+use std::sync::Arc;
+use std::sync::OnceLock;
 
 /// 全局 SaTokenManager 实例（标准库 OnceLock，Rust 1.70+）
 static GLOBAL_MANAGER: OnceLock<Arc<SaTokenManager>> = OnceLock::new();
@@ -52,25 +52,37 @@ impl<T: Display> LoginId for T {
 pub struct StpUtil;
 
 impl StpUtil {
+    /// Whether the legacy global facade has been explicitly initialized.
+    pub fn is_initialized() -> bool {
+        GLOBAL_MANAGER.get().is_some()
+    }
+
     // ==================== 初始化 ====================
 
     /// 初始化全局 SaTokenManager（应用启动时调用一次）
     ///
     /// # 示例
     /// ```rust,ignore
-    /// let manager = SaTokenConfig::builder()
+    /// let runtime = SaTokenConfig::builder()
     ///     .storage(Arc::new(MemoryStorage::new()))
-    ///     .build();
-    /// StpUtil::init_manager(manager);
+    ///     .build()?;
+    /// runtime.install_global()?;
     /// ```
-    pub fn init_manager(manager: SaTokenManager) {
-        GLOBAL_MANAGER.set(Arc::new(manager))
-            .unwrap_or_else(|_| panic!("StpUtil manager already initialized"));
+    pub fn init_manager(manager: SaTokenManager) -> SaTokenResult<()> {
+        Self::init_manager_arc(Arc::new(manager))
+    }
+
+    /// Explicitly install a shared manager for the legacy global facade.
+    pub fn init_manager_arc(manager: Arc<SaTokenManager>) -> SaTokenResult<()> {
+        GLOBAL_MANAGER.set(manager).map_err(|_| {
+            SaTokenError::ConfigError("StpUtil manager is already initialized".to_string())
+        })
     }
 
     /// 获取全局 Manager
     fn get_manager() -> &'static Arc<SaTokenManager> {
-        GLOBAL_MANAGER.get()
+        GLOBAL_MANAGER
+            .get()
             .expect("StpUtil not initialized. Call StpUtil::init_manager() first.")
     }
 
@@ -149,14 +161,16 @@ impl StpUtil {
         login_id: impl LoginId,
         extra_data: serde_json::Value,
     ) -> SaTokenResult<TokenValue> {
-        Self::get_manager().login_with_options(
-            login_id.to_login_id(),
-            None,    // login_type
-            None,    // device
-            Some(extra_data),
-            None,    // nonce
-            None,    // expire_time
-        ).await
+        Self::get_manager()
+            .login_with_options(
+                login_id.to_login_id(),
+                None, // login_type
+                None, // device
+                Some(extra_data),
+                None, // nonce
+                None, // expire_time
+            )
+            .await
     }
 
     /// 会话登录（带 manager 参数的版本，向后兼容）
@@ -169,11 +183,11 @@ impl StpUtil {
 
     /// 会话登出
     pub async fn logout(token: &TokenValue) -> SaTokenResult<()> {
-        tracing::debug!("开始执行 logout，token: {}", token);
+        tracing::debug!(operation = "logout", "开始执行 logout");
         let result = Self::get_manager().logout(token).await;
         match &result {
-            Ok(_) => tracing::debug!("logout 执行成功，token: {}", token),
-            Err(e) => tracing::debug!("logout 执行失败，token: {}, 错误: {}", token, e),
+            Ok(_) => tracing::debug!(operation = "logout", outcome = "success", "logout 执行成功"),
+            Err(_) => tracing::debug!(operation = "logout", outcome = "error", "logout 执行失败"),
         }
         result
     }
@@ -199,7 +213,9 @@ impl StpUtil {
 
     /// 强制登出（根据登录ID）
     pub async fn logout_by_login_id(login_id: impl LoginId) -> SaTokenResult<()> {
-        Self::get_manager().logout_by_login_id(&login_id.to_login_id()).await
+        Self::get_manager()
+            .logout_by_login_id(&login_id.to_login_id())
+            .await
     }
 
     /// 根据 token 登出（别名方法，更直观）
@@ -230,12 +246,20 @@ impl StpUtil {
     /// ```
     pub async fn logout_current() -> SaTokenResult<()> {
         let token = Self::get_token_value()?;
-        tracing::debug!("成功获取 token: {}", token);
+        tracing::debug!(operation = "logout_current", "已从请求上下文取得 token");
 
         let result = Self::logout(&token).await;
         match &result {
-            Ok(_) => tracing::debug!("logout_current 执行成功，token: {}", token),
-            Err(e) => tracing::debug!("logout_current 执行失败，token: {}, 错误: {}", token, e),
+            Ok(_) => tracing::debug!(
+                operation = "logout_current",
+                outcome = "success",
+                "logout_current 执行成功"
+            ),
+            Err(_) => tracing::debug!(
+                operation = "logout_current",
+                outcome = "error",
+                "logout_current 执行失败"
+            ),
         }
         result
     }
@@ -280,9 +304,10 @@ impl StpUtil {
     /// ```
     pub async fn get_login_id_as_string() -> SaTokenResult<String> {
         if let Some(ctx) = SaTokenContext::get_current()
-            && let Some(switch_id) = ctx.switch_login_id {
-                return Ok(switch_id);
-            }
+            && let Some(switch_id) = ctx.switch_login_id
+        {
+            return Ok(switch_id);
+        }
         let token = Self::get_token_value()?;
         Self::get_login_id(&token).await
     }
@@ -296,7 +321,8 @@ impl StpUtil {
     /// ```
     pub async fn get_login_id_as_long() -> SaTokenResult<i64> {
         let login_id_str = Self::get_login_id_as_string().await?;
-        login_id_str.parse::<i64>()
+        login_id_str
+            .parse::<i64>()
             .map_err(|_| SaTokenError::LoginIdNotNumber)
     }
 
@@ -334,10 +360,7 @@ impl StpUtil {
         }
     }
 
-    pub async fn is_login_with_manager(
-        manager: &SaTokenManager,
-        token: &TokenValue,
-    ) -> bool {
+    pub async fn is_login_with_manager(manager: &SaTokenManager, token: &TokenValue) -> bool {
         manager.is_valid(token).await
     }
 
@@ -361,10 +384,7 @@ impl StpUtil {
     }
 
     /// 获取当前 token 的登录ID，如果未登录则返回默认值
-    pub async fn get_login_id_or_default(
-        token: &TokenValue,
-        default: impl Into<String>,
-    ) -> String {
+    pub async fn get_login_id_or_default(token: &TokenValue, default: impl Into<String>) -> String {
         Self::get_login_id(token)
             .await
             .unwrap_or_else(|_| default.into())
@@ -396,7 +416,9 @@ impl StpUtil {
     /// ```rust,ignore
     /// let tokens = StpUtil::get_all_tokens_by_login_id("user_123").await?;
     /// ```
-    pub async fn get_all_tokens_by_login_id(login_id: impl LoginId) -> SaTokenResult<Vec<TokenValue>> {
+    pub async fn get_all_tokens_by_login_id(
+        login_id: impl LoginId,
+    ) -> SaTokenResult<Vec<TokenValue>> {
         let manager = Self::get_manager();
         let login_id_str = login_id.to_login_id();
 
@@ -404,8 +426,8 @@ impl StpUtil {
         let key = manager.config.make_key("login:tokens:", &login_id_str);
         match manager.storage.get(&key).await {
             Ok(Some(tokens_str)) => {
-                let token_strings: Vec<String> = serde_json::from_str(&tokens_str)
-                    .map_err(SaTokenError::SerializationError)?;
+                let token_strings: Vec<String> =
+                    serde_json::from_str(&tokens_str).map_err(SaTokenError::SerializationError)?;
                 Ok(token_strings.into_iter().map(TokenValue::new).collect())
             }
             Ok(None) => Ok(Vec::new()),
@@ -417,7 +439,9 @@ impl StpUtil {
 
     /// 获取当前登录账号的 Session
     pub async fn get_session(login_id: impl LoginId) -> SaTokenResult<SaSession> {
-        Self::get_manager().get_session(&login_id.to_login_id()).await
+        Self::get_manager()
+            .get_session(&login_id.to_login_id())
+            .await
     }
 
     /// 保存 Session
@@ -427,7 +451,9 @@ impl StpUtil {
 
     /// 删除 Session
     pub async fn delete_session(login_id: impl LoginId) -> SaTokenResult<()> {
-        Self::get_manager().delete_session(&login_id.to_login_id()).await
+        Self::get_manager()
+            .delete_session(&login_id.to_login_id())
+            .await
     }
 
     /// 在 Session 中设置值
@@ -448,7 +474,9 @@ impl StpUtil {
         login_id: impl LoginId,
         key: &str,
     ) -> SaTokenResult<Option<T>> {
-        let session = Self::get_manager().get_session(&login_id.to_login_id()).await?;
+        let session = Self::get_manager()
+            .get_session(&login_id.to_login_id())
+            .await?;
         Ok(session.get::<T>(key))
     }
 
@@ -490,10 +518,7 @@ impl StpUtil {
     }
 
     /// 移除用户的某个权限
-    pub async fn remove_permission(
-        login_id: impl LoginId,
-        permission: &str,
-    ) -> SaTokenResult<()> {
+    pub async fn remove_permission(login_id: impl LoginId, permission: &str) -> SaTokenResult<()> {
         Self::get_manager()
             .remove_permission(&login_id.to_login_id(), permission)
             .await
@@ -518,10 +543,7 @@ impl StpUtil {
     /// 检查用户是否拥有指定权限
     /// 支持精确匹配与通配符匹配（如 `admin:*` 匹配 `admin:read`）
     /// 存储读取失败时按"无权限"处理
-    pub async fn has_permission(
-        login_id: impl LoginId,
-        permission: &str,
-    ) -> bool {
+    pub async fn has_permission(login_id: impl LoginId, permission: &str) -> bool {
         let permissions = match Self::get_manager()
             .get_permissions(&login_id.to_login_id())
             .await
@@ -546,10 +568,7 @@ impl StpUtil {
     }
 
     /// 检查用户是否拥有所有指定权限（AND 逻辑）
-    pub async fn has_all_permissions(
-        login_id: impl LoginId,
-        permissions: &[&str],
-    ) -> bool {
+    pub async fn has_all_permissions(login_id: impl LoginId, permissions: &[&str]) -> bool {
         let login_id_str = login_id.to_login_id();
         for permission in permissions {
             if !Self::has_permission(&login_id_str, permission).await {
@@ -560,18 +579,12 @@ impl StpUtil {
     }
 
     /// 检查用户是否拥有所有指定权限（别名，AND 逻辑）
-    pub async fn has_permissions_and(
-        login_id: impl LoginId,
-        permissions: &[&str],
-    ) -> bool {
+    pub async fn has_permissions_and(login_id: impl LoginId, permissions: &[&str]) -> bool {
         Self::has_all_permissions(login_id, permissions).await
     }
 
     /// 检查用户是否拥有任一指定权限（OR 逻辑）
-    pub async fn has_any_permission(
-        login_id: impl LoginId,
-        permissions: &[&str],
-    ) -> bool {
+    pub async fn has_any_permission(login_id: impl LoginId, permissions: &[&str]) -> bool {
         let login_id_str = login_id.to_login_id();
         for permission in permissions {
             if Self::has_permission(&login_id_str, permission).await {
@@ -582,18 +595,12 @@ impl StpUtil {
     }
 
     /// 检查用户是否拥有任一指定权限（别名，OR 逻辑）
-    pub async fn has_permissions_or(
-        login_id: impl LoginId,
-        permissions: &[&str],
-    ) -> bool {
+    pub async fn has_permissions_or(login_id: impl LoginId, permissions: &[&str]) -> bool {
         Self::has_any_permission(login_id, permissions).await
     }
 
     /// 检查权限，如果没有则抛出异常
-    pub async fn check_permission(
-        login_id: impl LoginId,
-        permission: &str,
-    ) -> SaTokenResult<()> {
+    pub async fn check_permission(login_id: impl LoginId, permission: &str) -> SaTokenResult<()> {
         if !Self::has_permission(login_id, permission).await {
             return Err(SaTokenError::PermissionDeniedDetail(permission.to_string()));
         }
@@ -606,30 +613,21 @@ impl StpUtil {
 impl StpUtil {
     /// 覆盖设置用户角色列表
     /// 会完全替换该用户的所有角色
-    pub async fn set_roles(
-        login_id: impl LoginId,
-        roles: Vec<String>,
-    ) -> SaTokenResult<()> {
+    pub async fn set_roles(login_id: impl LoginId, roles: Vec<String>) -> SaTokenResult<()> {
         Self::get_manager()
             .set_roles(&login_id.to_login_id(), roles)
             .await
     }
 
     /// 为用户追加单个角色（已存在则跳过）
-    pub async fn add_role(
-        login_id: impl LoginId,
-        role: impl Into<String>,
-    ) -> SaTokenResult<()> {
+    pub async fn add_role(login_id: impl LoginId, role: impl Into<String>) -> SaTokenResult<()> {
         Self::get_manager()
             .add_role(&login_id.to_login_id(), role.into())
             .await
     }
 
     /// 移除用户的某个角色
-    pub async fn remove_role(
-        login_id: impl LoginId,
-        role: &str,
-    ) -> SaTokenResult<()> {
+    pub async fn remove_role(login_id: impl LoginId, role: &str) -> SaTokenResult<()> {
         Self::get_manager()
             .remove_role(&login_id.to_login_id(), role)
             .await
@@ -653,10 +651,7 @@ impl StpUtil {
 
     /// 检查用户是否拥有指定角色（精确匹配）
     /// 存储读取失败时按"无角色"处理
-    pub async fn has_role(
-        login_id: impl LoginId,
-        role: &str,
-    ) -> bool {
+    pub async fn has_role(login_id: impl LoginId, role: &str) -> bool {
         match Self::get_manager().get_roles(&login_id.to_login_id()).await {
             Ok(roles) => roles.iter().any(|r| r == role),
             Err(_) => false,
@@ -664,10 +659,7 @@ impl StpUtil {
     }
 
     /// 检查用户是否拥有所有指定角色（AND 逻辑）
-    pub async fn has_all_roles(
-        login_id: impl LoginId,
-        roles: &[&str],
-    ) -> bool {
+    pub async fn has_all_roles(login_id: impl LoginId, roles: &[&str]) -> bool {
         let login_id_str = login_id.to_login_id();
         for role in roles {
             if !Self::has_role(&login_id_str, role).await {
@@ -678,18 +670,12 @@ impl StpUtil {
     }
 
     /// 检查用户是否拥有所有指定角色（别名，AND 逻辑）
-    pub async fn has_roles_and(
-        login_id: impl LoginId,
-        roles: &[&str],
-    ) -> bool {
+    pub async fn has_roles_and(login_id: impl LoginId, roles: &[&str]) -> bool {
         Self::has_all_roles(login_id, roles).await
     }
 
     /// 检查用户是否拥有任一指定角色（OR 逻辑）
-    pub async fn has_any_role(
-        login_id: impl LoginId,
-        roles: &[&str],
-    ) -> bool {
+    pub async fn has_any_role(login_id: impl LoginId, roles: &[&str]) -> bool {
         let login_id_str = login_id.to_login_id();
         for role in roles {
             if Self::has_role(&login_id_str, role).await {
@@ -700,18 +686,12 @@ impl StpUtil {
     }
 
     /// 检查用户是否拥有任一指定角色（别名，OR 逻辑）
-    pub async fn has_roles_or(
-        login_id: impl LoginId,
-        roles: &[&str],
-    ) -> bool {
+    pub async fn has_roles_or(login_id: impl LoginId, roles: &[&str]) -> bool {
         Self::has_any_role(login_id, roles).await
     }
 
     /// 检查角色，如果没有则抛出异常
-    pub async fn check_role(
-        login_id: impl LoginId,
-        role: &str,
-    ) -> SaTokenResult<()> {
+    pub async fn check_role(login_id: impl LoginId, role: &str) -> SaTokenResult<()> {
         if !Self::has_role(login_id, role).await {
             return Err(SaTokenError::RoleDenied(role.to_string()));
         }
@@ -743,14 +723,16 @@ impl StpUtil {
 
     /// 校验封禁（默认服务 login、最低等级）
     pub async fn check_disable(login_id: impl LoginId) -> SaTokenResult<()> {
-        Self::check_disable_level(login_id, crate::disable::DEFAULT_DISABLE_SERVICE, crate::disable::MIN_DISABLE_LEVEL).await
+        Self::check_disable_level(
+            login_id,
+            crate::disable::DEFAULT_DISABLE_SERVICE,
+            crate::disable::MIN_DISABLE_LEVEL,
+        )
+        .await
     }
 
     /// 校验指定服务的封禁
-    pub async fn check_disable_service(
-        login_id: impl LoginId,
-        service: &str,
-    ) -> SaTokenResult<()> {
+    pub async fn check_disable_service(login_id: impl LoginId, service: &str) -> SaTokenResult<()> {
         Self::check_disable_level(login_id, service, crate::disable::MIN_DISABLE_LEVEL).await
     }
 
@@ -793,7 +775,9 @@ impl StpUtil {
     /// 为当前 token 开启二级认证
     pub async fn open_safe(service: &str, safe_time: i64) -> SaTokenResult<()> {
         let token = Self::get_token_value()?;
-        Self::get_manager().open_safe(&token, service, safe_time).await
+        Self::get_manager()
+            .open_safe(&token, service, safe_time)
+            .await
     }
 
     /// 当前 token 是否已通过二级认证
@@ -877,10 +861,7 @@ impl StpUtil {
     }
 
     /// 续期 token（重置过期时间）
-    pub async fn renew_timeout(
-        token: &TokenValue,
-        timeout_seconds: i64,
-    ) -> SaTokenResult<()> {
+    pub async fn renew_timeout(token: &TokenValue, timeout_seconds: i64) -> SaTokenResult<()> {
         let manager = Self::get_manager();
         let mut token_info = manager.get_token_info(token).await?;
 
@@ -890,11 +871,13 @@ impl StpUtil {
 
         // 保存更新后的 token 信息
         let key = manager.config.make_key("token:", token.as_str());
-        let value = serde_json::to_string(&token_info)
-            .map_err(SaTokenError::SerializationError)?;
+        let value = serde_json::to_string(&token_info).map_err(SaTokenError::SerializationError)?;
 
         let timeout = std::time::Duration::from_secs(timeout_seconds as u64);
-        manager.storage.set(&key, &value, Some(timeout)).await
+        manager
+            .storage
+            .set(&key, &value, Some(timeout))
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         Ok(())
@@ -916,10 +899,12 @@ impl StpUtil {
         token_info.extra_data = Some(extra_data);
 
         let key = manager.config.make_key("token:", token.as_str());
-        let value = serde_json::to_string(&token_info)
-            .map_err(SaTokenError::SerializationError)?;
+        let value = serde_json::to_string(&token_info).map_err(SaTokenError::SerializationError)?;
 
-        manager.storage.set(&key, &value, manager.config.timeout_duration()).await
+        manager
+            .storage
+            .set(&key, &value, manager.config.timeout_duration())
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         Ok(())
@@ -958,9 +943,7 @@ impl StpUtil {
     pub async fn get_terminal_info_by_token(
         token: &TokenValue,
     ) -> SaTokenResult<Option<crate::session::SaTerminalInfo>> {
-        Self::get_manager()
-            .get_terminal_info_by_token(token)
-            .await
+        Self::get_manager().get_terminal_info_by_token(token).await
     }
 
     // ==================== 多账号体系 ====================
@@ -1066,10 +1049,12 @@ impl TokenBuilder {
 
         // 保存更新后的 token 信息
         let key = manager.config.make_key("token:", token.as_str());
-        let value = serde_json::to_string(&token_info)
-            .map_err(SaTokenError::SerializationError)?;
+        let value = serde_json::to_string(&token_info).map_err(SaTokenError::SerializationError)?;
 
-        manager.storage.set(&key, &value, manager.config.timeout_duration()).await
+        manager
+            .storage
+            .set(&key, &value, manager.config.timeout_duration())
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         Ok(token)

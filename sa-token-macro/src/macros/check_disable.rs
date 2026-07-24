@@ -6,8 +6,9 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
+    Expr, ExprLit, ItemFn, Lit, LitInt, LitStr, MetaNameValue, Token,
     parse::{Parse, ParseStream},
-    parse_macro_input, Expr, ExprLit, ItemFn, Lit, LitInt, LitStr, MetaNameValue, Token,
+    parse_macro_input,
 };
 
 struct DisableAttr {
@@ -39,14 +40,12 @@ impl Parse for DisableAttr {
         while input.peek(Token![,]) {
             input.parse::<Token![,]>()?;
             let nv: MetaNameValue = input.parse()?;
-            if nv.path.is_ident("level") {
-                if let Expr::Lit(ExprLit {
-                    lit: Lit::Int(i),
-                    ..
+            if nv.path.is_ident("level")
+                && let Expr::Lit(ExprLit {
+                    lit: Lit::Int(i), ..
                 }) = nv.value
-                {
-                    attr.level = i;
-                }
+            {
+                attr.level = i;
             }
         }
 

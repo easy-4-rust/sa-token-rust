@@ -31,7 +31,7 @@ async fn main() -> Result<(), std::io::Error> {
     let state = SaTokenState::builder()
         .storage(Arc::new(MemoryStorage::new()))
         .timeout(7200)
-        .build();
+        .build()?;
     
     let app = Route::new()
         .at("/api/user", poem::get(user_info))

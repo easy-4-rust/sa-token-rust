@@ -22,7 +22,7 @@
 - ✅ 为 `sa-token-core` 添加单元测试（覆盖率 >80%）
 - ✅ 为每个 `storage` 实现添加集成测试
 - ✅ 为每个 `plugin` 添加端到端测试
-- ✅ 添加 benchmark 性能测试
+- ✅ 已添加核心热路径、完整认证链路、真实 Redis/PostgreSQL、框架适配器和内存回归基准
 
 **示例结构**:
 ```
@@ -219,11 +219,11 @@ let config = SaTokenConfig::builder()
 ### 7. 日志和监控
 
 **改进目标**:
-- ✅ 集成 tracing 完整日志
-- ✅ 添加 metrics 指标（登录次数、失败次数等）
-- ✅ 支持 Prometheus 导出
-- ✅ 添加审计日志（登录/登出/权限变更）
-- ✅ 实现异常告警机制
+- 🟡 已建立隐私安全的 tracing span 与结构化日志字段；业务模块覆盖仍持续扩展
+- ✅ 已添加低基数 metrics facade 指标与存储观测装饰器
+- [ ] Prometheus exporter（由应用选择 recorder/exporter，库不设置全局 recorder）
+- [ ] 独立、可持久化的合规审计日志
+- [ ] 告警规则与生产通知渠道
 
 **Metrics 示例**:
 ```rust
@@ -602,11 +602,12 @@ jobs:
 ### 21. 性能测试
 
 **改进目标**:
-- ✅ 使用 criterion.rs
-- ✅ 添加吞吐量测试
-- ✅ 添加延迟测试
-- ✅ 添加内存使用测试
-- ✅ 对比其他框架性能
+- ✅ 使用 Criterion 测量核心算法热路径
+- ✅ 使用 Gungraun/Valgrind 建立 Linux CI 指令级和 DHAT 回归基线
+- ✅ 完整登录/鉴权/登出链路吞吐量测试
+- ✅ Redis/PostgreSQL 真实服务网络延迟测试
+- ✅ DHAT/jemalloc 内存基线与可覆盖的 CI 回归阈值
+- ✅ Axum/Actix Web/Poem/Tonic 请求适配器同契约性能对比
 
 **Benchmark 示例**:
 ```rust
@@ -780,7 +781,7 @@ impl AccessPolicy {
 ### v1.0.0 - 生产就绪（1年内）
 
 **重点任务**:
-1. ✅ 完整的性能测试和优化
+1. 🟡 核心热路径基准已建立，生产场景容量与长期回归数据仍待积累
 2. ✅ 安全审计和渗透测试
 3. ✅ 完善的文档和教程
 4. ✅ 社区建设和推广
@@ -1081,4 +1082,3 @@ This document outlines the future development roadmap and improvement plans for 
 
 **Author**: 金书记  
 **Last Updated**: 2025-01-13
-

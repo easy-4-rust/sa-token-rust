@@ -13,8 +13,8 @@ pub async fn demo_stp_util() -> anyhow::Result<()> {
     tracing::info!("\n 1 用户登录");
     let user_id = "demo_user";
     let token = StpUtil::login(user_id).await?;
-    tracing::info!("✅ 用户 {} 登录成功", user_id);
-    tracing::info!("   Token: {}", token.as_str());
+    tracing::info!("✅ 用户登录成功（身份值不写入日志）");
+    tracing::info!(token_length = token.as_str().len(), "token generated; value redacted");
     
     // 2. 检查登录状态
     tracing::info!("\n 2 检查登录状态");
@@ -24,13 +24,13 @@ pub async fn demo_stp_util() -> anyhow::Result<()> {
     // 3. 获取登录 ID
     tracing::info!("\n 3 获取登录 ID");
     let login_id = StpUtil::get_login_id(&token).await?;
-    tracing::info!("✅ 当前登录 ID: {}", login_id);
+    tracing::info!("✅ 当前登录 ID 已解析（值不写入日志）");
     
     // 4. 获取 Token 信息
     tracing::info!("\n 4 获取 Token 信息");
     let token_info = StpUtil::get_token_info(&token).await?;
     tracing::info!("✅ Token 信息:");
-    tracing::info!("   - 登录 ID: {}", token_info.login_id);
+    tracing::info!("   - 登录 ID: [REDACTED]");
     tracing::info!("   - 创建时间: {}", token_info.create_time);
     tracing::info!("   - 登录类型: {}", token_info.login_type);
     

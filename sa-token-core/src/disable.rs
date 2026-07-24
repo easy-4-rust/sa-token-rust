@@ -21,7 +21,8 @@ pub const DEFAULT_DISABLE_LEVEL: i32 = 1;
 
 impl SaTokenManager {
     fn disable_key(&self, login_id: &str, service: &str) -> String {
-        self.config.make_key("disable:", &format!("{}:{}", login_id, service))
+        self.config
+            .make_key("disable:", &format!("{}:{}", login_id, service))
     }
 
     /// 封禁指定账号的指定服务及等级
@@ -98,10 +99,10 @@ impl SaTokenManager {
             });
         }
 
-        if let Some(iface) = &self.stp_interface {
-            if let Some(level) = iface.is_disabled(login_id, service).await? {
-                return Ok(level);
-            }
+        if let Some(iface) = &self.stp_interface
+            && let Some(level) = iface.is_disabled(login_id, service).await?
+        {
+            return Ok(level);
         }
 
         Ok(NOT_DISABLE_LEVEL)
@@ -171,10 +172,7 @@ mod tests {
     use std::sync::Arc;
 
     fn manager() -> SaTokenManager {
-        SaTokenManager::new(
-            Arc::new(MemoryStorage::new()),
-            SaTokenConfig::default(),
-        )
+        SaTokenManager::new(Arc::new(MemoryStorage::new()), SaTokenConfig::default())
     }
 
     #[tokio::test]

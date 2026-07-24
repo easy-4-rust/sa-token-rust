@@ -22,13 +22,37 @@ serde_json = { workspace = true }
 uuid = { workspace = true }
 jsonwebtoken = { workspace = true }
 sha2 = { workspace = true }
+getrandom = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
+metrics = { workspace = true, optional = true }
 urlencoding = { workspace = true }
 hex = "0.4.3"
 md-5 = "0.10.6"
 base64 = "0.22.1"
 subtle = "2.6"
+hmac = "0.12.1"
+sha1 = "0.10.6"
+sha2_010 = { package = "sha2", version = "0.10.9" }
 
 [dev-dependencies]
 sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage-memory" }
+tracing-subscriber = { workspace = true, features = ["fmt"] }
+criterion = { workspace = true }
+gungraun = { workspace = true }
+
+[features]
+default = []
+metrics = ["dep:metrics"]
+
+[[bench]]
+name = "core_hot_paths"
+harness = false
+
+[[bench]]
+name = "instruction_hot_paths"
+harness = false
+
+[[bench]]
+name = "auth_throughput"
+harness = false

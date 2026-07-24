@@ -18,11 +18,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use sa_token_adapter::storage::SaStorage;
+use sa_token_adapter::storage::{Expiration, SaStorage};
 use uuid::Uuid;
 
 use crate::constant_time::ct_eq_str;
 use crate::error::SaTokenError;
+use crate::token::TokenGenerator;
 
 fn storage_err(e: sa_token_adapter::storage::StorageError) -> SaTokenError {
     SaTokenError::StorageError(e.to_string())
@@ -144,15 +145,19 @@ impl SignTemplate {
                 message: "Nonce is empty".to_string(),
             });
         }
-        if !self.is_valid_nonce(nonce).await? {
-            return Err(SaTokenError::NonceAlreadyUsed);
-        }
-        // Mark as used (store with TTL)
         let key = self.splicing_nonce_key(nonce);
-        self.storage
-            .set(&key, "1", Some(std::time::Duration::from_secs(1800)))
+        let inserted = self
+            .storage
+            .set_if_absent(
+                &key,
+                "1",
+                Expiration::After(std::time::Duration::from_secs(1800)),
+            )
             .await
             .map_err(storage_err)?;
+        if !inserted {
+            return Err(SaTokenError::NonceAlreadyUsed);
+        }
         Ok(())
     }
 
@@ -175,7 +180,10 @@ impl SignTemplate {
 
     /// Full validation: timestamp + nonce + sign.
     /// 对应 Java `checkParamMap(params)`。
-    pub async fn check_params(&self, params: &BTreeMap<String, String>) -> Result<(), SaTokenError> {
+    pub async fn check_params(
+        &self,
+        params: &BTreeMap<String, String>,
+    ) -> Result<(), SaTokenError> {
         let timestamp: i64 = params
             .get("timestamp")
             .and_then(|s| s.parse().ok())
@@ -194,8 +202,8 @@ impl SignTemplate {
             })?;
 
         self.check_timestamp(timestamp)?;
-        self.check_nonce(nonce).await?;
         self.check_sign(params, sign)?;
+        self.check_nonce(nonce).await?;
         Ok(())
     }
 
@@ -226,6 +234,9 @@ pub struct ApiKeyModel {
     pub is_valid: bool,
     /// 授权范围
     pub scopes: Vec<String>,
+    /// 扩展数据
+    #[serde(default)]
+    pub extra_data: BTreeMap<String, serde_json::Value>,
 }
 
 impl ApiKeyModel {
@@ -240,6 +251,7 @@ impl ApiKeyModel {
             expires_time: -1,
             is_valid: true,
             scopes: Vec::new(),
+            extra_data: BTreeMap::new(),
         }
     }
 
@@ -255,6 +267,36 @@ impl ApiKeyModel {
     pub fn has_scope(&self, scope: &str) -> bool {
         self.scopes.iter().any(|s| s == scope)
     }
+
+    pub fn add_scope(&mut self, scope: impl Into<String>) -> &mut Self {
+        self.scopes.push(scope.into());
+        self
+    }
+
+    pub fn add_extra(&mut self, key: impl Into<String>, value: serde_json::Value) -> &mut Self {
+        self.extra_data.insert(key.into(), value);
+        self
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ApiKeyConfig {
+    /// Java-compatible key prefix.
+    pub prefix: String,
+    /// Default lifetime in seconds; `-1` means permanent.
+    pub timeout: i64,
+    /// Maintain a race-free per-key reverse index.
+    pub record_index: bool,
+}
+
+impl Default for ApiKeyConfig {
+    fn default() -> Self {
+        Self {
+            prefix: "AK-".to_string(),
+            timeout: 2_592_000,
+            record_index: true,
+        }
+    }
 }
 
 /// API Key template
@@ -263,6 +305,7 @@ pub struct ApiKeyTemplate {
     storage: Arc<dyn SaStorage>,
     key_prefix: String,
     namespace: String,
+    config: ApiKeyConfig,
 }
 
 impl ApiKeyTemplate {
@@ -271,16 +314,51 @@ impl ApiKeyTemplate {
             storage,
             key_prefix: key_prefix.into(),
             namespace: "apikey".to_string(),
+            config: ApiKeyConfig::default(),
         }
+    }
+
+    pub fn with_config(
+        storage: Arc<dyn SaStorage>,
+        key_prefix: impl Into<String>,
+        config: ApiKeyConfig,
+    ) -> Self {
+        Self {
+            storage,
+            key_prefix: key_prefix.into(),
+            namespace: "apikey".to_string(),
+            config,
+        }
+    }
+
+    pub fn config(&self) -> &ApiKeyConfig {
+        &self.config
     }
 
     fn splicing_key(&self, api_key: &str) -> String {
         format!("{}{}:{}", self.key_prefix, self.namespace, api_key)
     }
 
+    fn index_prefix(&self, login_id: &str) -> String {
+        format!(
+            "{}{}:index:{}:",
+            self.key_prefix,
+            self.namespace,
+            hex::encode(login_id.as_bytes())
+        )
+    }
+
+    fn index_key(&self, login_id: &str, api_key: &str) -> String {
+        format!("{}{}", self.index_prefix(login_id), api_key)
+    }
+
     /// Generate a random API Key value (Java: `prefix + 36-char random`)
-    pub fn random_api_key_value(&self) -> String {
-        format!("sk-{}", Uuid::new_v4().simple())
+    pub fn random_api_key_value(&self) -> Result<String, SaTokenError> {
+        Ok(format!(
+            "{}{}",
+            self.config.prefix,
+            TokenGenerator::generate_random(36)?.as_str()
+        ))
     }
 
     /// Create and store a new API Key.
@@ -291,11 +369,37 @@ impl ApiKeyTemplate {
         timeout_seconds: i64,
     ) -> Result<ApiKeyModel, SaTokenError> {
         let mut model = ApiKeyModel::new(login_id);
-        model.api_key = self.random_api_key_value();
-        if timeout_seconds > 0 {
-            model.expires_time = now_millis() + timeout_seconds * 1000;
-        }
+        model.api_key = self.random_api_key_value()?;
+        model.expires_time = if timeout_seconds == -1 {
+            -1
+        } else if timeout_seconds >= 0 {
+            now_millis().saturating_add(timeout_seconds.saturating_mul(1000))
+        } else {
+            return Err(SaTokenError::ConfigError(
+                "API Key timeout must be -1 or non-negative".to_string(),
+            ));
+        };
+        self.save_api_key(&model, timeout_seconds).await?;
+        Ok(model)
+    }
 
+    pub async fn create_api_key_default(
+        &self,
+        login_id: impl Into<String>,
+    ) -> Result<ApiKeyModel, SaTokenError> {
+        self.create_api_key(login_id, self.config.timeout).await
+    }
+
+    pub async fn save_api_key(
+        &self,
+        model: &ApiKeyModel,
+        timeout_seconds: i64,
+    ) -> Result<(), SaTokenError> {
+        if model.api_key.is_empty() || model.login_id.is_empty() {
+            return Err(SaTokenError::ConfigError(
+                "API Key value and login_id must not be empty".to_string(),
+            ));
+        }
         let json = serde_json::to_string(&model).map_err(SaTokenError::SerializationError)?;
         let ttl = if timeout_seconds > 0 {
             Some(std::time::Duration::from_secs(timeout_seconds as u64))
@@ -306,7 +410,13 @@ impl ApiKeyTemplate {
             .set(&self.splicing_key(&model.api_key), &json, ttl)
             .await
             .map_err(storage_err)?;
-        Ok(model)
+        if self.config.record_index {
+            self.storage
+                .set(&self.index_key(&model.login_id, &model.api_key), "", ttl)
+                .await
+                .map_err(storage_err)?;
+        }
+        Ok(())
     }
 
     /// Get an API Key model from storage.
@@ -345,11 +455,62 @@ impl ApiKeyTemplate {
 
     /// Delete an API Key.
     pub async fn delete_api_key(&self, api_key: &str) -> Result<(), SaTokenError> {
+        let model = self.get_api_key(api_key).await?;
         self.storage
             .delete(&self.splicing_key(api_key))
             .await
             .map_err(storage_err)?;
+        if let Some(model) = model
+            && self.config.record_index
+        {
+            self.storage
+                .delete(&self.index_key(&model.login_id, api_key))
+                .await
+                .map_err(storage_err)?;
+        }
         Ok(())
+    }
+
+    pub async fn get_api_keys_by_login_id(
+        &self,
+        login_id: &str,
+    ) -> Result<Vec<ApiKeyModel>, SaTokenError> {
+        if !self.config.record_index {
+            return Err(SaTokenError::ApiDisabled);
+        }
+        let prefix = self.index_prefix(login_id);
+        let pattern = format!("{prefix}*");
+        let mut cursor = None;
+        let mut models = Vec::new();
+        loop {
+            let page = self
+                .storage
+                .scan(&pattern, cursor.as_deref(), 128)
+                .await
+                .map_err(storage_err)?;
+            for key in page.keys {
+                if let Some(api_key) = key.strip_prefix(&prefix)
+                    && let Some(model) = self.get_api_key(api_key).await?
+                {
+                    models.push(model);
+                }
+            }
+            match page.next_cursor {
+                Some(next) if cursor.as_deref() != Some(next.as_str()) => cursor = Some(next),
+                _ => break,
+            }
+        }
+        models.sort_by(|left, right| left.api_key.cmp(&right.api_key));
+        Ok(models)
+    }
+
+    pub async fn delete_api_keys_by_login_id(&self, login_id: &str) -> Result<usize, SaTokenError> {
+        let models = self.get_api_keys_by_login_id(login_id).await?;
+        let count = models.len();
+        for model in models {
+            self.delete_api_key(&model.api_key).await?;
+        }
+        Ok(count)
     }
 
     /// Get login_id by API Key.
@@ -374,6 +535,23 @@ impl ApiKeyTemplate {
         }
         Ok(())
     }
+
+    /// Check whether at least one required scope is present (OR mode).
+    pub async fn check_api_key_scope_any(
+        &self,
+        api_key: &str,
+        required_scopes: &[&str],
+    ) -> Result<(), SaTokenError> {
+        let model = self.check_api_key(api_key).await?;
+        if required_scopes.is_empty() || required_scopes.iter().any(|scope| model.has_scope(scope))
+        {
+            return Ok(());
+        }
+        Err(SaTokenError::PermissionDeniedDetail(format!(
+            "Missing any API Key scope from: {}",
+            required_scopes.join(", ")
+        )))
+    }
 }
 
 // ── Utilities ──
@@ -383,14 +561,6 @@ fn now_millis() -> i64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
-}
-
-fn md5_hex(input: &str) -> String {
-    use md5::{Digest as Md5Digest, Md5};
-    let mut hasher = Md5::new();
-    hasher.update(input.as_bytes());
-    let result = hasher.finalize();
-    result.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
 /// HMAC-SHA256 hex digest (RFC 2104, for API Sign — more secure than MD5).
@@ -424,14 +594,14 @@ fn hmac_sha256_hex(data: &str, key: &str) -> String {
 
     // Inner hash: H(ipad || data)
     let mut inner = Sha256::new();
-    inner.update(&ipad);
+    inner.update(ipad);
     inner.update(data.as_bytes());
     let inner_result = inner.finalize();
 
     // Outer hash: H(opad || inner_hash)
     let mut outer = Sha256::new();
-    outer.update(&opad);
-    outer.update(&inner_result);
+    outer.update(opad);
+    outer.update(inner_result);
     let result = outer.finalize();
 
     result.iter().map(|b| format!("{:02x}", b)).collect()
@@ -520,13 +690,61 @@ mod tests {
         assert!(tpl.check_nonce("nonce-1").await.is_err());
     }
 
+    #[tokio::test]
+    async fn invalid_signature_does_not_consume_nonce() {
+        let tpl = SignTemplate::new(SignConfig::default(), make_storage(), "sa:");
+        let mut params = BTreeMap::new();
+        params.insert("data".to_string(), "payload".to_string());
+        tpl.add_sign_params(&mut params);
+        params.insert("sign".to_string(), "invalid".to_string());
+
+        assert!(tpl.check_params(&params).await.is_err());
+
+        let valid_sign = tpl.create_sign(&params);
+        params.insert("sign".to_string(), valid_sign);
+        assert!(tpl.check_params(&params).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn concurrent_signed_request_consumes_nonce_exactly_once() {
+        let tpl = Arc::new(SignTemplate::new(
+            SignConfig::default(),
+            make_storage(),
+            "sa:",
+        ));
+        let mut params = BTreeMap::new();
+        params.insert("data".to_string(), "payload".to_string());
+        tpl.add_sign_params(&mut params);
+        let params = Arc::new(params);
+
+        let mut tasks = Vec::new();
+        for _ in 0..32 {
+            let tpl = tpl.clone();
+            let params = params.clone();
+            tasks.push(tokio::spawn(async move { tpl.check_params(&params).await }));
+        }
+
+        let mut accepted = 0;
+        let mut rejected_as_replay = 0;
+        for task in tasks {
+            match task.await.unwrap() {
+                Ok(()) => accepted += 1,
+                Err(SaTokenError::NonceAlreadyUsed) => rejected_as_replay += 1,
+                Err(error) => panic!("unexpected validation error: {error}"),
+            }
+        }
+        assert_eq!(accepted, 1);
+        assert_eq!(rejected_as_replay, 31);
+    }
+
     // ── API Key tests ──
 
     #[tokio::test]
     async fn test_apikey_create_and_get() {
         let tpl = ApiKeyTemplate::new(make_storage(), "sa:");
         let model = tpl.create_api_key("user-1", 3600).await.unwrap();
-        assert!(model.api_key.starts_with("sk-"));
+        assert!(model.api_key.starts_with("AK-"));
+        assert_eq!(model.api_key.len(), 39);
         let got = tpl.get_api_key(&model.api_key).await.unwrap();
         assert!(got.is_some());
         assert_eq!(got.unwrap().login_id, "user-1");
@@ -560,6 +778,45 @@ mod tests {
         let model = tpl.create_api_key("user-42", 3600).await.unwrap();
         let login_id = tpl.get_login_id_by_api_key(&model.api_key).await.unwrap();
         assert_eq!(login_id, "user-42");
+    }
+
+    #[tokio::test]
+    async fn apikey_reverse_index_and_scope_modes() {
+        let tpl = ApiKeyTemplate::new(make_storage(), "sa:");
+        let mut first = tpl.create_api_key("user-1", 3600).await.unwrap();
+        first
+            .add_scope("read")
+            .add_extra("tenant", serde_json::json!(7));
+        tpl.save_api_key(&first, 3600).await.unwrap();
+
+        let mut second = tpl.create_api_key("user-1", 3600).await.unwrap();
+        second.add_scope("write");
+        tpl.save_api_key(&second, 3600).await.unwrap();
+
+        let indexed = tpl.get_api_keys_by_login_id("user-1").await.unwrap();
+        assert_eq!(indexed.len(), 2);
+        let indexed_first = indexed
+            .iter()
+            .find(|model| model.api_key == first.api_key)
+            .unwrap();
+        assert_eq!(
+            indexed_first.extra_data.get("tenant"),
+            Some(&serde_json::json!(7))
+        );
+        assert!(
+            tpl.check_api_key_scope_any(&first.api_key, &["write", "read"])
+                .await
+                .is_ok()
+        );
+        assert!(
+            tpl.check_api_key_scope(&first.api_key, &["read", "write"])
+                .await
+                .is_err()
+        );
+
+        assert_eq!(tpl.delete_api_keys_by_login_id("user-1").await.unwrap(), 2);
+        assert!(tpl.get_api_key(&first.api_key).await.unwrap().is_none());
+        assert!(tpl.get_api_key(&second.api_key).await.unwrap().is_none());
     }
 
     #[test]

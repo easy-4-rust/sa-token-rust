@@ -7,8 +7,8 @@
 // 新增 TonicCapturedRequest 供 run_auth_flow 使用
 
 use http::{HeaderMap, Request as HttpRequest};
-use sa_token_adapter::{SaRequest, SaResponse, CookieOptions};
 use sa_token_adapter::utils::parse_cookies;
+use sa_token_adapter::{CookieOptions, SaRequest, SaResponse};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -67,10 +67,10 @@ impl TonicCapturedRequest {
     ) -> Self {
         let mut headers = HashMap::new();
         for item in metadata.iter() {
-            if let tonic::metadata::KeyAndValueRef::Ascii(key, value) = item {
-                if let Ok(s) = value.to_str() {
-                    headers.insert(key.as_str().to_string(), s.to_string());
-                }
+            if let tonic::metadata::KeyAndValueRef::Ascii(key, value) = item
+                && let Ok(s) = value.to_str()
+            {
+                headers.insert(key.as_str().to_string(), s.to_string());
             }
         }
         Self {

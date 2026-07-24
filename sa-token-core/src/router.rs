@@ -4,9 +4,11 @@
 // 基于路径的鉴权路由模块
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use sa_token_adapter::context::SaRequest;
 use sa_token_adapter::utils::extract_bearer_or_value;
+use tracing::Instrument;
 
 type LoginIdValidator = Arc<dyn Fn(&str) -> bool + Send + Sync>;
 
@@ -146,7 +148,7 @@ impl Default for PathAuthConfig {
     }
 }
 
-use crate::{SaTokenManager, TokenValue, SaTokenContext, token::TokenInfo};
+use crate::{SaTokenContext, SaTokenManager, TokenValue, token::TokenInfo};
 
 /// Authentication result after processing
 /// 处理后的鉴权结果
@@ -198,9 +200,9 @@ pub async fn process_auth(
     manager: &SaTokenManager,
 ) -> AuthResult {
     let need_auth = config.check(path);
-    
+
     let token = token_str.map(TokenValue::new);
-    
+
     let (is_valid, token_info) = if let Some(ref t) = token {
         let valid = manager.is_valid(t).await;
         let info = if valid {
@@ -213,11 +215,14 @@ pub async fn process_auth(
         (false, None)
     };
 
-    let is_valid = is_valid && if need_auth {
-        token_info.as_ref().is_some_and(|info| config.validate_login_id(&info.login_id))
-    } else {
-        true
-    };
+    let is_valid = is_valid
+        && if need_auth {
+            token_info
+                .as_ref()
+                .is_some_and(|info| config.validate_login_id(&info.login_id))
+        } else {
+            true
+        };
 
     AuthResult {
         need_auth,
@@ -258,12 +263,13 @@ pub fn extract_token<R: SaRequest>(req: &R, token_name: &str) -> Option<String> 
         }
     }
     if !token_name.eq_ignore_ascii_case("authorization")
-        && let Some(v) = req.get_header("Authorization") {
-            let s = extract_bearer_or_value(&v);
-            if !s.is_empty() {
-                return Some(s);
-            }
+        && let Some(v) = req.get_header("Authorization")
+    {
+        let s = extract_bearer_or_value(&v);
+        if !s.is_empty() {
+            return Some(s);
         }
+    }
     if let Some(v) = req.get_cookie(token_name) {
         let s = v.trim().to_string();
         if !s.is_empty() {
@@ -319,51 +325,74 @@ pub async fn run_auth_flow<R: SaRequest>(
     manager: &SaTokenManager,
     path_config: Option<&PathAuthConfig>,
 ) -> AuthFlowResult {
-    let token_name = manager.config.token_name.as_str();
-    let token_str = extract_token(req, token_name);
-    let path = req.get_path();
+    let started = Instant::now();
+    let span = tracing::info_span!(
+        "sa_token.auth",
+        operation = "authenticate",
+        path_rules = path_config.is_some(),
+        outcome = tracing::field::Empty
+    );
+    let result = async {
+        let token_name = manager.config.token_name.as_str();
+        let token_str = extract_token(req, token_name);
+        let path = req.get_path();
 
-    let (auth, ctx) = match path_config {
-        Some(cfg) => {
-            // Path-based rules: may set need_auth / should_reject.
-            // 基于路径的规则：可产生 need_auth / should_reject。
-            let auth = process_auth(path.as_str(), token_str.clone(), cfg, manager).await;
-            let ctx = create_context(&auth);
-            (auth, ctx)
-        }
-        None => {
-            // No path config: only validate token when present.
-            // 无路径配置：仅在有 token 时做有效性校验。
-            let token = token_str.map(TokenValue::new);
-            let (is_valid, token_info) = if let Some(ref t) = token {
-                let valid = manager.is_valid(t).await;
-                let info = if valid {
-                    manager.get_token_info(t).await.ok()
+        let (auth, ctx) = match path_config {
+            Some(cfg) => {
+                // Path-based rules: may set need_auth / should_reject.
+                // 基于路径的规则：可产生 need_auth / should_reject。
+                let auth = process_auth(path.as_str(), token_str.clone(), cfg, manager).await;
+                let ctx = create_context(&auth);
+                (auth, ctx)
+            }
+            None => {
+                // No path config: only validate token when present.
+                // 无路径配置：仅在有 token 时做有效性校验。
+                let token = token_str.map(TokenValue::new);
+                let (is_valid, token_info) = if let Some(ref t) = token {
+                    let valid = manager.is_valid(t).await;
+                    let info = if valid {
+                        manager.get_token_info(t).await.ok()
+                    } else {
+                        None
+                    };
+                    (valid, info)
                 } else {
-                    None
+                    (false, None)
                 };
-                (valid, info)
-            } else {
-                (false, None)
-            };
-            let auth = AuthResult {
-                need_auth: false,
-                token: token.clone(),
-                token_info,
-                is_valid,
-            };
-            let ctx = create_context(&auth);
-            (auth, ctx)
+                let auth = AuthResult {
+                    need_auth: false,
+                    token: token.clone(),
+                    token_info,
+                    is_valid,
+                };
+                let ctx = create_context(&auth);
+                (auth, ctx)
+            }
+        };
+
+        let login_id = auth.login_id().map(str::to_string);
+        let token = auth.token.clone();
+        AuthFlowResult {
+            auth,
+            login_id,
+            token,
+            context: ctx,
         }
-    };
-
-    let login_id = auth.login_id().map(str::to_string);
-    let token = auth.token.clone();
-    AuthFlowResult {
-        auth,
-        login_id,
-        token,
-        context: ctx,
     }
-}
+    .instrument(span.clone())
+    .await;
 
+    let outcome = if result.auth.should_reject() {
+        crate::telemetry::AUTH_OUTCOME_REJECTED
+    } else if result.auth.is_valid {
+        crate::telemetry::AUTH_OUTCOME_ALLOWED
+    } else if result.auth.token.is_some() {
+        crate::telemetry::AUTH_OUTCOME_INVALID
+    } else {
+        crate::telemetry::AUTH_OUTCOME_ANONYMOUS
+    };
+    span.record("outcome", outcome);
+    crate::telemetry::record_auth(outcome, started.elapsed());
+    result
+}

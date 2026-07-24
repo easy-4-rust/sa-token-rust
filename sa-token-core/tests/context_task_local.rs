@@ -1,14 +1,14 @@
 //! `SaTokenContext` task-local 与兼容路径行为。
 use std::sync::Arc;
 
-use sa_token_core::config::SaTokenConfig;
 use sa_token_core::SaTokenContext;
-use sa_token_core::SaTokenManager;
+use sa_token_core::SaTokenRuntime;
+use sa_token_core::config::SaTokenConfig;
 use sa_token_storage_memory::MemoryStorage;
 
-fn build_manager() -> SaTokenManager {
+fn build_manager() -> SaTokenRuntime {
     let storage = Arc::new(MemoryStorage::new());
-    SaTokenConfig::builder().storage(storage).build()
+    SaTokenConfig::builder().storage(storage).build().unwrap()
 }
 
 /// A. scope 内跨 await 跨 worker 仍能拿到 ctx

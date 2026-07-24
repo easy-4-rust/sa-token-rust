@@ -14,8 +14,8 @@ pub async fn demo_stp_util() -> anyhow::Result<()> {
     // 1. 登录演示
     // 1. Login demonstration
     let token = StpUtil::login("demo_user").await?;
-    tracing::info!("1. 登录成功，token: {}", token);
-    tracing::info!("1. Login successful, token: {}", token);
+    tracing::info!(token_length = token.as_str().len(), "1. 登录成功，token 值已脱敏");
+    tracing::info!("1. Login successful, token value redacted");
     
     // 2. 检查登录状态
     // 2. Check login status
@@ -26,14 +26,14 @@ pub async fn demo_stp_util() -> anyhow::Result<()> {
     // 3. 获取登录ID
     // 3. Get login ID
     let login_id = StpUtil::get_login_id(&token).await?;
-    tracing::info!("3. 登录ID: {}", login_id);
-    tracing::info!("3. Login ID: {}", login_id);
+    tracing::info!("3. 登录 ID 已解析（值不写入日志）");
+    tracing::info!("3. Login ID resolved (value omitted)");
     
     // 4. 获取 token 信息
     // 4. Get token information
-    let token_info = StpUtil::get_token_info(&token).await?;
-    tracing::info!("4. token信息: login_id={}, device={:?}", token_info.login_id, token_info.device);
-    tracing::info!("4. token information: login_id={}, device={:?}", token_info.login_id, token_info.device);
+    let _token_info = StpUtil::get_token_info(&token).await?;
+    tracing::info!("4. token 信息已读取（身份与设备值不写入日志）");
+    tracing::info!("4. token information loaded (identity and device omitted)");
     
     // 5. 获取 token 有效期
     // 5. Get token expiration time

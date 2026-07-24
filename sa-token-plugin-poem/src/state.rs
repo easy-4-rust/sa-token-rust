@@ -3,9 +3,9 @@
 //! Sa-Token state management for Poem
 //! Poem 的 Sa-Token 状态管理
 
-use std::sync::Arc;
-use sa_token_core::SaTokenManager;
 use sa_token_adapter::storage::SaStorage;
+use sa_token_core::SaTokenManager;
+use std::sync::Arc;
 
 /// Sa-Token state for Poem framework
 /// Poem 框架的 Sa-Token 状态
@@ -19,7 +19,7 @@ impl SaTokenState {
     pub fn new(manager: Arc<SaTokenManager>) -> Self {
         Self { manager }
     }
-    
+
     /// Create builder for Sa-Token state | 创建 Sa-Token 状态构建器
     pub fn builder() -> SaTokenStateBuilder {
         SaTokenStateBuilder::new()
@@ -42,47 +42,57 @@ impl SaTokenStateBuilder {
             token_name: None,
         }
     }
-    
+
     /// Set storage | 设置存储
     pub fn storage(mut self, storage: Arc<dyn SaStorage>) -> Self {
         self.storage = Some(storage);
         self
     }
-    
+
     /// Set timeout in seconds | 设置超时时间（秒）
     pub fn timeout(mut self, timeout: i64) -> Self {
         self.timeout = Some(timeout);
         self
     }
-    
+
     /// Set token name | 设置 token 名称
     pub fn token_name(mut self, name: impl Into<String>) -> Self {
         self.token_name = Some(name.into());
         self
     }
-    
+
     /// Build Sa-Token state | 构建 Sa-Token 状态
-    pub fn build(self) -> SaTokenState {
+    pub fn build(self) -> sa_token_core::SaTokenResult<SaTokenState> {
         let mut config = sa_token_core::SaTokenConfig::default();
-        
+
         if let Some(timeout) = self.timeout {
             config.timeout = timeout;
         }
-        
+
         if let Some(token_name) = self.token_name {
             config.token_name = token_name;
         }
-        
-        let storage = self.storage.unwrap_or_else(|| {
-            Arc::new(sa_token_storage_memory::MemoryStorage::new())
-        });
-        
+
+        let storage = match self.storage {
+            Some(storage) => storage,
+            None => {
+                #[cfg(feature = "memory")]
+                {
+                    Arc::new(sa_token_storage_memory::MemoryStorage::new())
+                }
+                #[cfg(not(feature = "memory"))]
+                {
+                    return Err(sa_token_core::SaTokenError::ConfigError(
+                        "Poem state requires explicit storage when `memory` is disabled"
+                            .to_string(),
+                    ));
+                }
+            }
+        };
+
         let manager = SaTokenManager::new(storage, config);
-        
-        // 自动初始化全局 StpUtil | Auto-initialize global StpUtil
-        sa_token_core::StpUtil::init_manager(manager.clone());
-        
-        SaTokenState::new(Arc::new(manager))
+
+        Ok(SaTokenState::new(Arc::new(manager)))
     }
 }
 

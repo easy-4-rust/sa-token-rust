@@ -5,12 +5,12 @@
 //! Implements token refresh mechanism for long-term authentication
 //! 实现长期认证的 Token 刷新机制
 
-use std::sync::Arc;
-use chrono::{DateTime, Utc, Duration};
-use sa_token_adapter::storage::SaStorage;
-use crate::error::{SaTokenError, SaTokenResult};
-use crate::token::{TokenInfo, TokenValue, TokenGenerator};
 use crate::config::SaTokenConfig;
+use crate::error::{SaTokenError, SaTokenResult};
+use crate::token::{TokenGenerator, TokenInfo, TokenValue};
+use chrono::{DateTime, Duration, Utc};
+use sa_token_adapter::storage::SaStorage;
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// Refresh Token Manager | Refresh Token 管理器
@@ -157,8 +157,8 @@ impl RefreshTokenManager {
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?
             .ok_or(SaTokenError::RefreshTokenNotFound)?;
 
-        let value: serde_json::Value = serde_json::from_str(&value_str)
-            .map_err(|_| SaTokenError::RefreshTokenInvalidData)?;
+        let value: serde_json::Value =
+            serde_json::from_str(&value_str).map_err(|_| SaTokenError::RefreshTokenInvalidData)?;
 
         let login_id = value["login_id"]
             .as_str()
@@ -196,8 +196,8 @@ impl RefreshTokenManager {
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?
             .ok_or(SaTokenError::RefreshTokenNotFound)?;
 
-        let mut value: serde_json::Value = serde_json::from_str(&value_str)
-            .map_err(|_| SaTokenError::RefreshTokenInvalidData)?;
+        let mut value: serde_json::Value =
+            serde_json::from_str(&value_str).map_err(|_| SaTokenError::RefreshTokenInvalidData)?;
 
         let extra_data = value.get("extra_data").cloned();
         let new_access_token = match &extra_data {
@@ -205,16 +205,15 @@ impl RefreshTokenManager {
                 TokenGenerator::generate_with_login_id_and_extra(&self.config, &login_id, extra)
             }
             None => TokenGenerator::generate_with_login_id(&self.config, &login_id),
-        };
+        }?;
 
         // 构造并写入新的 TokenInfo（与 Manager 登录路径一致的存储键）
         let mut token_info = TokenInfo::new(new_access_token.clone(), login_id.clone());
         token_info.update_active_time();
         token_info.refresh_token = Some(refresh_token.to_string());
         if self.config.refresh_token_timeout > 0 {
-            token_info.refresh_token_expire_time = Some(
-                Utc::now() + Duration::seconds(self.config.refresh_token_timeout),
-            );
+            token_info.refresh_token_expire_time =
+                Some(Utc::now() + Duration::seconds(self.config.refresh_token_timeout));
         }
         if let Some(extra) = &extra_data {
             token_info.extra_data = Some(extra.clone());
@@ -222,13 +221,12 @@ impl RefreshTokenManager {
         if token_info.expire_time.is_none()
             && let Some(timeout) = self.config.timeout_duration()
         {
-            token_info.expire_time =
-                Some(Utc::now() + Duration::from_std(timeout).unwrap());
+            token_info.expire_time = Some(Utc::now() + Duration::from_std(timeout).unwrap());
         }
 
         let token_key = self.config.make_key("token:", new_access_token.as_str());
-        let token_json = serde_json::to_string(&token_info)
-            .map_err(SaTokenError::SerializationError)?;
+        let token_json =
+            serde_json::to_string(&token_info).map_err(SaTokenError::SerializationError)?;
         self.storage
             .set(&token_key, &token_json, self.config.timeout_duration())
             .await
@@ -269,12 +267,11 @@ impl RefreshTokenManager {
         let key = self.refresh_key(refresh_token);
 
         // 读取 login_id 以便清理用户索引
-        if let Ok(Some(value_str)) = self.storage.get(&key).await {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&value_str)
-                && let Some(login_id) = value["login_id"].as_str()
-            {
-                let _ = self.remove_user_index(login_id, refresh_token).await;
-            }
+        if let Ok(Some(value_str)) = self.storage.get(&key).await
+            && let Ok(value) = serde_json::from_str::<serde_json::Value>(&value_str)
+            && let Some(login_id) = value["login_id"].as_str()
+        {
+            let _ = self.remove_user_index(login_id, refresh_token).await;
         }
 
         self.storage
@@ -302,8 +299,8 @@ impl RefreshTokenManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sa_token_storage_memory::MemoryStorage;
     use crate::config::TokenStyle;
+    use sa_token_storage_memory::MemoryStorage;
 
     fn create_test_config() -> Arc<SaTokenConfig> {
         Arc::new(SaTokenConfig {
@@ -345,7 +342,10 @@ mod tests {
         let login_id = refresh_mgr.validate(&refresh_token).await.unwrap();
         assert_eq!(login_id, "user_123");
 
-        let tokens = refresh_mgr.get_user_refresh_tokens("user_123").await.unwrap();
+        let tokens = refresh_mgr
+            .get_user_refresh_tokens("user_123")
+            .await
+            .unwrap();
         assert_eq!(tokens, vec![refresh_token]);
     }
 
@@ -394,7 +394,10 @@ mod tests {
         let result = refresh_mgr.validate(&refresh_token).await;
         assert!(result.is_err());
 
-        let tokens = refresh_mgr.get_user_refresh_tokens("user_123").await.unwrap();
+        let tokens = refresh_mgr
+            .get_user_refresh_tokens("user_123")
+            .await
+            .unwrap();
         assert!(tokens.is_empty());
     }
 

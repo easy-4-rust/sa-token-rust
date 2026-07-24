@@ -13,7 +13,7 @@ use sa_token_core::{SaTokenConfig, config::TokenStyle};
 #[tokio::test]
 async fn test_default_config_values() {
     let config = SaTokenConfig::default();
-    assert_eq!(config.token_name, "sa-token");
+    assert_eq!(config.token_name, "satoken");
     assert_eq!(config.timeout, 2592000);
     assert_eq!(config.active_timeout, -1);
     assert!(config.auto_renew);
@@ -84,18 +84,14 @@ async fn test_builder_token_name() {
 
 #[tokio::test]
 async fn test_timeout_negative_never_expires() {
-    let config = SaTokenConfig::builder()
-        .timeout(-1)
-        .build_config();
+    let config = SaTokenConfig::builder().timeout(-1).build_config();
     assert_eq!(config.timeout, -1);
     assert!(config.timeout_duration().is_none());
 }
 
 #[tokio::test]
 async fn test_timeout_positive_has_duration() {
-    let config = SaTokenConfig::builder()
-        .timeout(3600)
-        .build_config();
+    let config = SaTokenConfig::builder().timeout(3600).build_config();
     let dur = config.timeout_duration();
     assert!(dur.is_some());
     assert_eq!(dur.unwrap().as_secs(), 3600);
@@ -103,9 +99,7 @@ async fn test_timeout_positive_has_duration() {
 
 #[tokio::test]
 async fn test_is_concurrent_setting() {
-    let config = SaTokenConfig::builder()
-        .is_concurrent(false)
-        .build_config();
+    let config = SaTokenConfig::builder().is_concurrent(false).build_config();
     assert!(!config.is_concurrent);
 }
 
@@ -123,9 +117,7 @@ async fn test_all_token_styles() {
         TokenStyle::Tik,
     ];
     for style in &styles {
-        let config = SaTokenConfig::builder()
-            .token_style(*style)
-            .build_config();
+        let config = SaTokenConfig::builder().token_style(*style).build_config();
         // TokenStyle doesn't implement PartialEq for direct comparison,
         // but we can verify via debug output
         let _ = format!("{:?}", config.token_style);
@@ -142,17 +134,19 @@ async fn test_builder_register_listener() {
     let _mgr = SaTokenConfig::builder()
         .storage(storage)
         .register_listener(std::sync::Arc::new(DummyListener))
-        .build();
+        .build()
+        .expect("build runtime");
 }
 
 // ── Failure cases ──────────────────────────────────────────────────────────
 
 #[tokio::test]
-#[should_panic(expected = "Storage must be set")]
-async fn test_build_without_storage_panics() {
-    SaTokenConfig::builder()
-        .timeout(3600)
-        .build();
+async fn test_build_without_storage_returns_error() {
+    let result = SaTokenConfig::builder().timeout(3600).build();
+    assert!(matches!(
+        result,
+        Err(sa_token_core::SaTokenError::ConfigError(_))
+    ));
 }
 
 #[tokio::test]
