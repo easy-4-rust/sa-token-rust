@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use sa_token_core::{PathAuthConfig, SaTokenManager};
-use vernal_aop::Advisor;
+use vernal_aop::{Advisor, LocalAdvisor};
 use vernal_context::VernalApplicationBuilder;
 use vernal_ioc::{ComponentDefinition, DefinitionError};
 
@@ -103,13 +103,21 @@ impl SaTokenComponents {
     ///
     /// 应用已注册 `SaTokenManager`、`VernalSaTokenBridge` 或
     /// `VernalSaTokenPolicy` 时返回 [`DefinitionError`]；失败不会留下部分组件
-    /// 定义，也不会提前注册 Advisor。
+    /// 定义，也不会提前注册 Send/Local Advisor。
     pub fn install<'a>(
         &self,
         application: &'a mut VernalApplicationBuilder,
     ) -> Result<&'a mut VernalApplicationBuilder, DefinitionError> {
         application.register_all(self.definitions())?;
         application.advisor(Advisor::new(
+            VernalSaTokenPointcut,
+            VernalSaTokenInterceptor::with_policy(
+                Arc::clone(&self.bridge),
+                Arc::clone(&self.policy),
+            ),
+            self.advisor_order,
+        ));
+        application.local_advisor(LocalAdvisor::new(
             VernalSaTokenPointcut,
             VernalSaTokenInterceptor::with_policy(
                 Arc::clone(&self.bridge),

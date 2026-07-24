@@ -21,11 +21,11 @@ switches.
 `SaTokenComponents` additionally installs a prebuilt `Arc<SaTokenManager>`, its
 `VernalSaTokenBridge`, and an immutable `VernalSaTokenPolicy` as one atomic
 Vernal component bundle. It also registers `VernalSaTokenInterceptor` as an
-early AOP Advisor. The exact Manager, Bridge, and Policy identities are shared
-by the container and interceptor. Authentication and authorization can
-short-circuit before the handler, and the resulting `WebFailure` is mapped by
-Vernal's Axum/Tonic adapters without leaking token, role, permission, or storage
-details:
+early Send-AOP Advisor and Local-AOP Advisor. The exact Manager, Bridge, and
+Policy identities are shared by the container and both execution planes.
+Authentication and authorization can short-circuit before the handler, and the
+resulting `WebFailure` is mapped by Vernal's Axum, Poem, Tonic, and Actix
+adapters without leaking token, role, permission, or storage details:
 
 ```rust
 let operation = Operation::new("/orders/{id}", "PUT");
@@ -44,9 +44,11 @@ let context = application.build()?;
 ```
 
 HTTP adapters use `Operation(path_template, http_method)`; Tonic uses
-`Operation(service_name, method_name)`. Install Vernal's strict AOP adapter
-entry (`with_vernal_aop` for Axum or `TonicAopLayer` for Tonic) so the owned
-`HttpRequestSnapshot` and request context reach the interceptor.
+`Operation(service_name, method_name)`. Install the framework's strict AOP
+entry so the owned `HttpRequestSnapshot` and request context reach the
+interceptor. Send-capable adapters consume the Send plan; Actix wraps a
+concrete `web::resource(...)` with
+`VernalActixMiddleware::strict_aop(...)` and consumes the Local plan.
 
 `VernalSaTokenPolicy` supports all/any role rules and all/any permission rules.
 Roles use exact matching. Permissions preserve Sa-Token-Rust's exact, global
@@ -78,15 +80,18 @@ This bridge is experimental and `publish = false` while Vernal's API is
 `SaTokenComponents` 还会把预构造的 `Arc<SaTokenManager>`、
 `VernalSaTokenBridge` 与不可变 `VernalSaTokenPolicy` 作为一个原子组件包安装到
 Vernal，并把 `VernalSaTokenInterceptor` 注册为靠前执行的 AOP Advisor。容器与
-拦截器共享完全相同的 Manager、Bridge 和 Policy `Arc`；认证或授权可以在
-Handler 前短路，产生的 `WebFailure` 由 Vernal Axum/Tonic Adapter 映射，客户端
+拦截器共享完全相同的 Manager、Bridge 和 Policy `Arc`；组件包会同时注册
+Send-AOP 与 Local-AOP Advisor，让支持 Send 的 Adapter 和 Actix 的 `Rc`、
+非 `Send` Service Future 使用完全一致的安全语义。认证或授权可以在 Handler 前短路，
+产生的 `WebFailure` 由 Vernal Axum、Poem、Tonic 与 Actix Adapter 映射，客户端
 不会看到 Token、角色、权限或存储错误细节。Bridge 对 Manager 的依赖仍显式进入
 启动期组件图；任一组件标识冲突时，不会留下只注册一半的状态。
 
 HTTP Adapter 的操作身份是 `Operation(path_template, http_method)`，Tonic 则是
-`Operation(service_name, method_name)`。应用需要声明操作，并安装 Axum
-`with_vernal_aop` 或 Tonic `TonicAopLayer`，使 owned `HttpRequestSnapshot` 与
-`RequestContext` 进入认证拦截器。
+`Operation(service_name, method_name)`。应用需要声明操作并安装相应严格 AOP
+入口，使 owned `HttpRequestSnapshot` 与 `RequestContext` 进入认证拦截器；
+支持 Send 的 Adapter 消费 Send 计划，Actix 则在具体 `web::resource(...)` 上安装
+`VernalActixMiddleware::strict_aop(...)` 并消费 Local 计划。
 
 `VernalSaTokenPolicy` 支持角色、权限各自的 ALL/ANY 规则。角色精确匹配；权限
 保持 Sa-Token-Rust 的精确、全局 `*` 与 `orders:*` 前缀通配符语义。受保护的

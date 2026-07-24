@@ -1,7 +1,9 @@
 //! Sa-Token-Rust 消费 Vernal HTTP/Web 合同的真实桥接测试。
 
 use std::{
+    cell::RefCell,
     error::Error,
+    rc::Rc,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -20,7 +22,10 @@ use sa_token_vernal::{
     VernalSaTokenPolicy,
 };
 use tokio_util::sync::CancellationToken;
-use vernal_aop::{InvocationError, InvocationTarget, InvocationValue, Operation};
+use vernal_aop::{
+    InvocationError, InvocationTarget, InvocationValue, LocalInvocationTarget,
+    LocalInvocationValue, Operation,
+};
 use vernal_context::VernalApplicationBuilder;
 use vernal_http::HttpRequestSnapshot;
 use vernal_web::{HandlerInvocation, RequestContext, RouteMetadata, WebFailure, WebRequestScope};
@@ -246,6 +251,10 @@ async fn component_bundle_compiles_authentication_advisor_and_scopes_target_futu
         })
     });
 
+    assert!(
+        context.local_invocation_plans().get(&operation).is_some(),
+        "same component bundle should also compile the Local-AOP advisor"
+    );
     let value = context
         .invocation_plans()
         .get(&operation)
@@ -262,6 +271,84 @@ async fn component_bundle_compiles_authentication_advisor_and_scopes_target_futu
             .expect("Vernal principal")
             .subject(),
         "aop-user"
+    );
+    assert!(SaTokenContext::get_current().is_none());
+    context.close().await.expect("context should close");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn component_bundle_scopes_non_send_local_target_future() {
+    let manager = manager();
+    let token = manager
+        .login("local-aop-user")
+        .await
+        .expect("Sa-Token login");
+    manager
+        .set_roles("local-aop-user", vec!["operator".to_owned()])
+        .await
+        .expect("role setup");
+    let operation = Operation::new("/actix/orders/{id}", "GET");
+    let policy =
+        Arc::new(VernalSaTokenPolicy::new().require_all_roles(operation.clone(), ["operator"]));
+    let components = SaTokenComponents::new(Arc::clone(&manager)).with_authorization_policy(policy);
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+
+    let request_context = Arc::new(RequestContext::new(
+        RouteMetadata::new("/actix/orders/{id}", "GET", "/actix/orders/{id}"),
+        CancellationToken::new(),
+    ));
+    request_context
+        .extensions()
+        .insert(snapshot(
+            "/actix/orders/42",
+            Some(&format!("Bearer {}", token.as_str())),
+        ))
+        .await;
+    let scope = Arc::new(WebRequestScope::new(request_context.cancellation().clone()));
+    let invocation = HandlerInvocation::new(Arc::clone(&request_context), scope)
+        .aop_invocation()
+        .await;
+
+    // Rc/RefCell 同时进入 Future 和返回值，证明该调用没有被伪装成 Send 链。
+    let local_events = Rc::new(RefCell::new(Vec::new()));
+    let observed_events = Rc::clone(&local_events);
+    let target: Rc<LocalInvocationTarget> = Rc::new(move |_invocation| {
+        let observed_events = Rc::clone(&observed_events);
+        Box::pin(async move {
+            observed_events.borrow_mut().push("target");
+            tokio::task::yield_now().await;
+            let login_id = SaTokenContext::get_current().and_then(|current| current.login_id);
+            Ok(Box::new(Rc::new(login_id)) as LocalInvocationValue)
+        })
+    });
+
+    let value = context
+        .local_invocation_plans()
+        .get(&operation)
+        .expect("compiled Sa-Token Local-AOP advisor")
+        .invoke(invocation, target)
+        .await
+        .expect("authenticated local invocation");
+    let login_id = value
+        .downcast::<Rc<Option<String>>>()
+        .expect("non-Send local login id");
+    assert_eq!(login_id.as_deref(), Some("local-aop-user"));
+    assert_eq!(*local_events.borrow(), ["target"]);
+    assert_eq!(
+        request_context
+            .principal()
+            .await
+            .expect("Vernal principal")
+            .subject(),
+        "local-aop-user"
     );
     assert!(SaTokenContext::get_current().is_none());
     context.close().await.expect("context should close");

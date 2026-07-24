@@ -138,10 +138,13 @@ All plugins provide:
 [句芒 · Vernal](https://github.com/easy-4-rust/vernal). It adapts Vernal's
 owned HTTP request snapshot to `SaRequest`, reuses `run_auth_flow`, writes a
 read-only `SecurityPrincipal`, and scopes the downstream Tokio future with
-`SaTokenContext`. `SaTokenComponents` also installs an authentication and
-operation-authorization Advisor backed by immutable `VernalSaTokenPolicy`.
-Role/permission failures can short-circuit Vernal AOP calls before the Handler
-with stable 401/403 mappings. Vernal never depends back on Sa-Token-Rust.
+`SaTokenContext`. `SaTokenComponents` installs matching Send-AOP and Local-AOP
+authentication/operation-authorization Advisors backed by one immutable
+`VernalSaTokenPolicy`. The same security semantics therefore cover
+Send-capable Axum/Tonic/Poem calls and Actix's `Rc`-based non-`Send` Service
+future.
+Role/permission failures can short-circuit before the Handler with stable
+401/403 mappings. Vernal never depends back on Sa-Token-Rust.
 
 The bridge is currently experimental and unpublished because Vernal remains at
 `0.0.0-dev`; see [`sa-token-vernal/README.md`](sa-token-vernal/README.md).
