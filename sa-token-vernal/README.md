@@ -19,16 +19,24 @@ continues to see the correct request identity across `.await` and Tokio worker
 switches.
 
 `SaTokenComponents` additionally installs a prebuilt `Arc<SaTokenManager>` and
-its `VernalSaTokenBridge` as one atomic Vernal component bundle. The exact
-Manager identity is preserved for existing plugins and background tasks, while
-the bridge's dependency remains visible to Vernal's startup graph:
+its `VernalSaTokenBridge` as one atomic Vernal component bundle, and registers
+`VernalSaTokenInterceptor` as an early AOP Advisor. The exact Manager and Bridge
+identities are shared by the container and interceptor. Authentication can
+short-circuit before the handler, and the resulting `WebFailure` is mapped by
+Vernal's Axum/Tonic adapters without leaking token or storage details:
 
 ```rust
 let components = SaTokenComponents::new(manager).with_path_auth(path_auth);
 let mut application = VernalApplicationBuilder::current()?;
+application.operation(Operation::new("/orders/{id}", "GET"));
 components.install(&mut application)?;
 let context = application.build()?;
 ```
+
+HTTP adapters use `Operation(path_template, http_method)`; Tonic uses
+`Operation(service_name, method_name)`. Install Vernal's strict AOP adapter
+entry (`with_vernal_aop` for Axum or `TonicAopLayer` for Tonic) so the owned
+`HttpRequestSnapshot` and request context reach the interceptor.
 
 This bridge is experimental and `publish = false` while Vernal's API is
 `0.0.0-dev`. Its Git dependency is pinned to a verified Vernal commit.
@@ -50,9 +58,17 @@ This bridge is experimental and `publish = false` while Vernal's API is
 切换后仍读取当前请求身份。
 
 `SaTokenComponents` 还会把预构造的 `Arc<SaTokenManager>` 与
-`VernalSaTokenBridge` 作为一个原子组件包安装到 Vernal。Manager 的原始 `Arc`
-身份会保留给既有 Plugin 和后台任务，Bridge 对 Manager 的依赖则显式进入启动期
-组件图；任一组件标识冲突时，不会留下只注册一半的状态。
+`VernalSaTokenBridge` 作为一个原子组件包安装到 Vernal，并把
+`VernalSaTokenInterceptor` 注册为靠前执行的 AOP Advisor。容器与拦截器共享
+完全相同的 Manager 和 Bridge `Arc`；认证可以在 Handler 前短路，产生的
+`WebFailure` 由 Vernal Axum/Tonic Adapter 映射，客户端不会看到 Token 或存储
+错误细节。Bridge 对 Manager 的依赖仍显式进入启动期组件图；任一组件标识冲突
+时，不会留下只注册一半的状态。
+
+HTTP Adapter 的操作身份是 `Operation(path_template, http_method)`，Tonic 则是
+`Operation(service_name, method_name)`。应用需要声明操作，并安装 Axum
+`with_vernal_aop` 或 Tonic `TonicAopLayer`，使 owned `HttpRequestSnapshot` 与
+`RequestContext` 进入认证拦截器。
 
 Vernal API 仍为 `0.0.0-dev`，因此该桥目前保持实验状态且不发布，并把 Git 依赖
 固定到已经验证的 Vernal 提交。

@@ -5843,6 +5843,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
+ "vernal-aop",
  "vernal-context",
  "vernal-http",
  "vernal-ioc",
@@ -7746,7 +7747,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 [[package]]
 name = "vernal-aop"
 version = "0.0.0-dev"
-source = "git+https://github.com/easy-4-rust/vernal.git?rev=6494dc35084f5ca2c1573807c2fe1c85e31c5373#6494dc35084f5ca2c1573807c2fe1c85e31c5373"
+source = "git+https://github.com/easy-4-rust/vernal.git?rev=f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef#f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef"
 dependencies = [
  "tokio",
  "tokio-util",
@@ -7756,8 +7757,9 @@ dependencies = [
 [[package]]
 name = "vernal-context"
 version = "0.0.0-dev"
-source = "git+https://github.com/easy-4-rust/vernal.git?rev=6494dc35084f5ca2c1573807c2fe1c85e31c5373#6494dc35084f5ca2c1573807c2fe1c85e31c5373"
+source = "git+https://github.com/easy-4-rust/vernal.git?rev=f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef#f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef"
 dependencies = [
+ "serde",
  "tokio",
  "tokio-util",
  "vernal-aop",
@@ -7768,12 +7770,12 @@ dependencies = [
 [[package]]
 name = "vernal-core"
 version = "0.0.0-dev"
-source = "git+https://github.com/easy-4-rust/vernal.git?rev=6494dc35084f5ca2c1573807c2fe1c85e31c5373#6494dc35084f5ca2c1573807c2fe1c85e31c5373"
+source = "git+https://github.com/easy-4-rust/vernal.git?rev=f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef#f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef"
 
 [[package]]
 name = "vernal-http"
 version = "0.0.0-dev"
-source = "git+https://github.com/easy-4-rust/vernal.git?rev=6494dc35084f5ca2c1573807c2fe1c85e31c5373#6494dc35084f5ca2c1573807c2fe1c85e31c5373"
+source = "git+https://github.com/easy-4-rust/vernal.git?rev=f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef#f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef"
 dependencies = [
  "bytes",
  "futures-core",
@@ -7788,15 +7790,16 @@ dependencies = [
 [[package]]
 name = "vernal-ioc"
 version = "0.0.0-dev"
-source = "git+https://github.com/easy-4-rust/vernal.git?rev=6494dc35084f5ca2c1573807c2fe1c85e31c5373#6494dc35084f5ca2c1573807c2fe1c85e31c5373"
+source = "git+https://github.com/easy-4-rust/vernal.git?rev=f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef#f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef"
 dependencies = [
+ "serde",
  "vernal-core",
 ]
 
 [[package]]
 name = "vernal-web"
 version = "0.0.0-dev"
-source = "git+https://github.com/easy-4-rust/vernal.git?rev=6494dc35084f5ca2c1573807c2fe1c85e31c5373#6494dc35084f5ca2c1573807c2fe1c85e31c5373"
+source = "git+https://github.com/easy-4-rust/vernal.git?rev=f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef#f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef"
 dependencies = [
  "tokio",
  "tokio-util",

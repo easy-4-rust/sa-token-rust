@@ -138,7 +138,9 @@ All plugins provide:
 [句芒 · Vernal](https://github.com/easy-4-rust/vernal). It adapts Vernal's
 owned HTTP request snapshot to `SaRequest`, reuses `run_auth_flow`, writes a
 read-only `SecurityPrincipal`, and scopes the downstream Tokio future with
-`SaTokenContext`. Vernal never depends back on Sa-Token-Rust.
+`SaTokenContext`. `SaTokenComponents` also installs an authentication Advisor
+that can short-circuit Vernal AOP calls before the Handler. Vernal never
+depends back on Sa-Token-Rust.
 
 The bridge is currently experimental and unpublished because Vernal remains at
 `0.0.0-dev`; see [`sa-token-vernal/README.md`](sa-token-vernal/README.md).

@@ -16,10 +16,11 @@ description = "Consumer-owned Vernal bridge for Sa-Token-Rust authentication con
 sa-token-adapter = { version = "0.1.18", path = "../sa-token-adapter" }
 sa-token-core = { version = "0.1.18", path = "../sa-token-core" }
 thiserror = { workspace = true }
-vernal-context = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
-vernal-http = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
-vernal-ioc = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
-vernal-web = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
+vernal-aop = { git = "https://github.com/easy-4-rust/vernal.git", rev = "f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef" }
+vernal-context = { git = "https://github.com/easy-4-rust/vernal.git", rev = "f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef" }
+vernal-http = { git = "https://github.com/easy-4-rust/vernal.git", rev = "f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef" }
+vernal-ioc = { git = "https://github.com/easy-4-rust/vernal.git", rev = "f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef" }
+vernal-web = { git = "https://github.com/easy-4-rust/vernal.git", rev = "f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef" }
 
 [dev-dependencies]
 http = { workspace = true }

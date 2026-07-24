@@ -1,6 +1,9 @@
 //! Sa-Token-Rust 消费 Vernal HTTP/Web 合同的真实桥接测试。
 
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 use http::Request;
 use sa_token_adapter::SaRequest;
@@ -10,9 +13,10 @@ use sa_token_vernal::{
     SaTokenComponents, VernalSaRequest, VernalSaTokenBridge, VernalSaTokenError,
 };
 use tokio_util::sync::CancellationToken;
+use vernal_aop::{InvocationError, InvocationTarget, InvocationValue, Operation};
 use vernal_context::VernalApplicationBuilder;
 use vernal_http::HttpRequestSnapshot;
-use vernal_web::{RequestContext, RouteMetadata};
+use vernal_web::{HandlerInvocation, RequestContext, RouteMetadata, WebFailure, WebRequestScope};
 
 fn snapshot(uri: &str, authorization: Option<&str>) -> HttpRequestSnapshot {
     let mut builder = Request::builder().method("GET").uri(uri);
@@ -150,6 +154,7 @@ async fn component_bundle_preserves_manager_identity_and_rejects_duplicates_atom
 
     assert!(Arc::ptr_eq(&manager, &resolved_manager));
     assert!(Arc::ptr_eq(&manager, bridge.manager()));
+    assert!(Arc::ptr_eq(components.bridge(), &bridge));
     assert!(matches!(
         bridge
             .authenticate(
@@ -160,5 +165,122 @@ async fn component_bundle_preserves_manager_identity_and_rejects_duplicates_atom
         Err(VernalSaTokenError::Unauthorized)
     ));
 
+    context.close().await.expect("context should close");
+}
+
+#[tokio::test]
+async fn component_bundle_compiles_authentication_advisor_and_scopes_target_future() {
+    let manager = manager();
+    let token = manager.login("aop-user").await.expect("Sa-Token login");
+    manager
+        .set_roles("aop-user", vec!["operator".to_owned()])
+        .await
+        .expect("role setup");
+    let components = SaTokenComponents::new(Arc::clone(&manager));
+    let operation = Operation::new("order_handler", "create");
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+
+    let request_context = Arc::new(RequestContext::new(
+        RouteMetadata::new("order_handler", "create", "/orders"),
+        CancellationToken::new(),
+    ));
+    request_context
+        .extensions()
+        .insert(snapshot(
+            "/orders",
+            Some(&format!("Bearer {}", token.as_str())),
+        ))
+        .await;
+    let scope = Arc::new(WebRequestScope::new(request_context.cancellation().clone()));
+    let invocation = HandlerInvocation::new(Arc::clone(&request_context), scope)
+        .aop_invocation()
+        .await;
+    let target: Arc<InvocationTarget> = Arc::new(|_invocation| {
+        Box::pin(async {
+            let login_id = SaTokenContext::get_current().and_then(|current| current.login_id);
+            Ok(Box::new(login_id) as InvocationValue)
+        })
+    });
+
+    let value = context
+        .invocation_plans()
+        .get(&operation)
+        .expect("compiled Sa-Token advisor")
+        .invoke(invocation, target)
+        .await
+        .expect("authenticated invocation");
+    let login_id = value.downcast::<Option<String>>().expect("target login id");
+    assert_eq!(login_id.as_deref(), Some("aop-user"));
+    assert_eq!(
+        request_context
+            .principal()
+            .await
+            .expect("Vernal principal")
+            .subject(),
+        "aop-user"
+    );
+    assert!(SaTokenContext::get_current().is_none());
+    context.close().await.expect("context should close");
+}
+
+#[tokio::test]
+async fn authentication_advisor_short_circuits_protected_operation_with_web_failure() {
+    let target_called = Arc::new(AtomicBool::new(false));
+    let components = SaTokenComponents::new(manager())
+        .with_path_auth(PathAuthConfig::new().include(vec!["/protected/**".to_owned()]));
+    let operation = Operation::new("protected_handler", "read");
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+
+    let request_context = Arc::new(RequestContext::new(
+        RouteMetadata::new("protected_handler", "read", "/protected/{resource}"),
+        CancellationToken::new(),
+    ));
+    request_context
+        .extensions()
+        .insert(snapshot("/protected/resource", None))
+        .await;
+    let scope = Arc::new(WebRequestScope::new(request_context.cancellation().clone()));
+    let invocation = HandlerInvocation::new(Arc::clone(&request_context), scope)
+        .aop_invocation()
+        .await;
+    let observed_target = Arc::clone(&target_called);
+    let target: Arc<InvocationTarget> = Arc::new(move |_invocation| {
+        observed_target.store(true, Ordering::SeqCst);
+        Box::pin(async { Ok(Box::new(()) as InvocationValue) })
+    });
+
+    let error = context
+        .invocation_plans()
+        .get(&operation)
+        .expect("compiled Sa-Token advisor")
+        .invoke(invocation, target)
+        .await
+        .expect_err("anonymous protected operation must fail");
+    let InvocationError::Target { source } = error else {
+        panic!("security rejection must remain a target failure");
+    };
+    let failure = source
+        .downcast::<WebFailure>()
+        .expect("framework-neutral Web failure");
+    assert_eq!(failure.problem().status(), 401);
+    assert_eq!(failure.problem().title(), "Authentication is required");
+    assert!(!target_called.load(Ordering::SeqCst));
+    assert!(request_context.principal().await.is_none());
     context.close().await.expect("context should close");
 }
