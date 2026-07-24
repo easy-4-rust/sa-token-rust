@@ -6,8 +6,11 @@ use http::Request;
 use sa_token_adapter::SaRequest;
 use sa_token_core::{PathAuthConfig, SaTokenConfig, SaTokenContext, SaTokenManager};
 use sa_token_storage_memory::MemoryStorage;
-use sa_token_vernal::{VernalSaRequest, VernalSaTokenBridge, VernalSaTokenError};
+use sa_token_vernal::{
+    SaTokenComponents, VernalSaRequest, VernalSaTokenBridge, VernalSaTokenError,
+};
 use tokio_util::sync::CancellationToken;
+use vernal_context::VernalApplicationBuilder;
 use vernal_http::HttpRequestSnapshot;
 use vernal_web::{RequestContext, RouteMetadata};
 
@@ -116,4 +119,46 @@ async fn protected_route_rejects_anonymous_request_and_clears_principal() {
     assert_eq!(error.status(), 401);
     assert_eq!(error.safe_message(), "Authentication is required");
     assert!(context.principal().await.is_none());
+}
+
+#[tokio::test]
+async fn component_bundle_preserves_manager_identity_and_rejects_duplicates_atomically() {
+    let manager = manager();
+    let components = SaTokenComponents::new(Arc::clone(&manager))
+        .with_path_auth(PathAuthConfig::new().include(vec!["/protected/**".to_owned()]));
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    assert!(
+        components.install(&mut application).is_err(),
+        "duplicate bundle should be rejected without replacing the first install"
+    );
+
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+    let resolved_manager = context
+        .container()
+        .resolve::<SaTokenManager>()
+        .expect("manager should resolve");
+    let bridge = context
+        .container()
+        .resolve::<VernalSaTokenBridge>()
+        .expect("bridge should resolve");
+
+    assert!(Arc::ptr_eq(&manager, &resolved_manager));
+    assert!(Arc::ptr_eq(&manager, bridge.manager()));
+    assert!(matches!(
+        bridge
+            .authenticate(
+                &snapshot("/protected/resource", None),
+                &request_context("/protected/**"),
+            )
+            .await,
+        Err(VernalSaTokenError::Unauthorized)
+    ));
+
+    context.close().await.expect("context should close");
 }

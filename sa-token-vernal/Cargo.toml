@@ -16,8 +16,10 @@ description = "Consumer-owned Vernal bridge for Sa-Token-Rust authentication con
 sa-token-adapter = { version = "0.1.18", path = "../sa-token-adapter" }
 sa-token-core = { version = "0.1.18", path = "../sa-token-core" }
 thiserror = { workspace = true }
-vernal-http = { git = "https://github.com/easy-4-rust/vernal.git", rev = "337add96e82e133adb5d4bee61bebb135c519290" }
-vernal-web = { git = "https://github.com/easy-4-rust/vernal.git", rev = "337add96e82e133adb5d4bee61bebb135c519290" }
+vernal-context = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
+vernal-http = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
+vernal-ioc = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
+vernal-web = { git = "https://github.com/easy-4-rust/vernal.git", rev = "6494dc35084f5ca2c1573807c2fe1c85e31c5373" }
 
 [dev-dependencies]
 http = { workspace = true }

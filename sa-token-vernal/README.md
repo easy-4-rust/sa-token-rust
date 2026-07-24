@@ -18,6 +18,18 @@ Run the downstream future through `VernalAuthentication::run` so `StpUtil`
 continues to see the correct request identity across `.await` and Tokio worker
 switches.
 
+`SaTokenComponents` additionally installs a prebuilt `Arc<SaTokenManager>` and
+its `VernalSaTokenBridge` as one atomic Vernal component bundle. The exact
+Manager identity is preserved for existing plugins and background tasks, while
+the bridge's dependency remains visible to Vernal's startup graph:
+
+```rust
+let components = SaTokenComponents::new(manager).with_path_auth(path_auth);
+let mut application = VernalApplicationBuilder::current()?;
+components.install(&mut application)?;
+let context = application.build()?;
+```
+
 This bridge is experimental and `publish = false` while Vernal's API is
 `0.0.0-dev`. Its Git dependency is pinned to a verified Vernal commit.
 
@@ -36,6 +48,11 @@ This bridge is experimental and `publish = false` while Vernal's API is
 返回的 `VernalAuthentication` 持有请求级 `SaTokenContext`。业务 Future 应通过
 `VernalAuthentication::run` 执行，以保证 `StpUtil` 跨 `.await` 和 Tokio Worker
 切换后仍读取当前请求身份。
+
+`SaTokenComponents` 还会把预构造的 `Arc<SaTokenManager>` 与
+`VernalSaTokenBridge` 作为一个原子组件包安装到 Vernal。Manager 的原始 `Arc`
+身份会保留给既有 Plugin 和后台任务，Bridge 对 Manager 的依赖则显式进入启动期
+组件图；任一组件标识冲突时，不会留下只注册一半的状态。
 
 Vernal API 仍为 `0.0.0-dev`，因此该桥目前保持实验状态且不发布，并把 Git 依赖
 固定到已经验证的 Vernal 提交。
