@@ -8,6 +8,7 @@ mod vernal_sa_token_bridge;
 mod vernal_sa_token_error;
 mod vernal_sa_token_interceptor;
 mod vernal_sa_token_pointcut;
+mod vernal_sa_token_policy;
 
 pub use sa_token_components::SaTokenComponents;
 pub use vernal_authentication::VernalAuthentication;
@@ -16,3 +17,4 @@ pub use vernal_sa_token_bridge::VernalSaTokenBridge;
 pub use vernal_sa_token_error::VernalSaTokenError;
 pub use vernal_sa_token_interceptor::VernalSaTokenInterceptor;
 pub use vernal_sa_token_pointcut::VernalSaTokenPointcut;
+pub use vernal_sa_token_policy::VernalSaTokenPolicy;

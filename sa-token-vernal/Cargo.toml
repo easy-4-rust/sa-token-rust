@@ -10,7 +10,7 @@ documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
 publish = false
-description = "Consumer-owned Vernal bridge for Sa-Token-Rust authentication contexts"
+description = "Consumer-owned Vernal bridge for Sa-Token-Rust authentication and authorization"
 
 [dependencies]
 sa-token-adapter = { version = "0.1.18", path = "../sa-token-adapter" }
@@ -23,6 +23,7 @@ vernal-ioc = { git = "https://github.com/easy-4-rust/vernal.git", rev = "f48647c
 vernal-web = { git = "https://github.com/easy-4-rust/vernal.git", rev = "f48647cf848f1dcaaeebc30e2e6ed485bd6a52ef" }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 http = { workspace = true }
 sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage-memory" }
 tokio = { workspace = true }

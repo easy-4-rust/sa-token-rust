@@ -1,16 +1,23 @@
 //! Sa-Token-Rust 消费 Vernal HTTP/Web 合同的真实桥接测试。
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    error::Error,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
+use async_trait::async_trait;
 use http::Request;
 use sa_token_adapter::SaRequest;
-use sa_token_core::{PathAuthConfig, SaTokenConfig, SaTokenContext, SaTokenManager};
+use sa_token_core::{
+    PathAuthConfig, SaTokenConfig, SaTokenContext, SaTokenError, SaTokenManager, StpInterface,
+};
 use sa_token_storage_memory::MemoryStorage;
 use sa_token_vernal::{
     SaTokenComponents, VernalSaRequest, VernalSaTokenBridge, VernalSaTokenError,
+    VernalSaTokenPolicy,
 };
 use tokio_util::sync::CancellationToken;
 use vernal_aop::{InvocationError, InvocationTarget, InvocationValue, Operation};
@@ -42,6 +49,30 @@ fn manager() -> Arc<SaTokenManager> {
         Arc::new(MemoryStorage::new()),
         SaTokenConfig::default(),
     ))
+}
+
+/// 用于证明权限数据源失败不会被错误映射成普通 403 的测试数据源。
+struct FailingPermissionSource;
+
+#[async_trait]
+impl StpInterface for FailingPermissionSource {
+    async fn get_permission_list(
+        &self,
+        _login_id: &str,
+        _login_type: &str,
+    ) -> Result<Vec<String>, SaTokenError> {
+        Err(SaTokenError::StorageError(
+            "permission backend unavailable".to_owned(),
+        ))
+    }
+
+    async fn get_role_list(
+        &self,
+        _login_id: &str,
+        _login_type: &str,
+    ) -> Result<Vec<String>, SaTokenError> {
+        Ok(vec!["operator".to_owned()])
+    }
 }
 
 #[test]
@@ -151,10 +182,15 @@ async fn component_bundle_preserves_manager_identity_and_rejects_duplicates_atom
         .container()
         .resolve::<VernalSaTokenBridge>()
         .expect("bridge should resolve");
+    let policy = context
+        .container()
+        .resolve::<VernalSaTokenPolicy>()
+        .expect("authorization policy should resolve");
 
     assert!(Arc::ptr_eq(&manager, &resolved_manager));
     assert!(Arc::ptr_eq(&manager, bridge.manager()));
     assert!(Arc::ptr_eq(components.bridge(), &bridge));
+    assert!(Arc::ptr_eq(components.authorization_policy(), &policy));
     assert!(matches!(
         bridge
             .authenticate(
@@ -282,5 +318,254 @@ async fn authentication_advisor_short_circuits_protected_operation_with_web_fail
     assert_eq!(failure.problem().title(), "Authentication is required");
     assert!(!target_called.load(Ordering::SeqCst));
     assert!(request_context.principal().await.is_none());
+    context.close().await.expect("context should close");
+}
+
+#[tokio::test]
+async fn operation_policy_combines_role_permission_and_or_rules_with_wildcards() {
+    let manager = manager();
+    let token = manager.login("policy-user").await.expect("Sa-Token login");
+    manager
+        .set_roles("policy-user", vec!["operator".to_owned()])
+        .await
+        .expect("role setup");
+    manager
+        .set_permissions("policy-user", vec!["orders:*".to_owned()])
+        .await
+        .expect("permission setup");
+
+    let operation = Operation::new("/orders/{id}", "PUT");
+    let policy = Arc::new(
+        VernalSaTokenPolicy::new()
+            .require_all_roles(operation.clone(), ["operator"])
+            .require_any_role(operation.clone(), ["admin", "operator"])
+            .require_all_permissions(operation.clone(), ["orders:read"])
+            .require_any_permission(operation.clone(), ["orders:delete", "orders:write"]),
+    );
+    let components =
+        SaTokenComponents::new(Arc::clone(&manager)).with_authorization_policy(Arc::clone(&policy));
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+
+    let request_context = Arc::new(RequestContext::new(
+        RouteMetadata::new("/orders/{id}", "PUT", "/orders/{id}"),
+        CancellationToken::new(),
+    ));
+    request_context
+        .extensions()
+        .insert(snapshot(
+            "/orders/42",
+            Some(&format!("Bearer {}", token.as_str())),
+        ))
+        .await;
+    let scope = Arc::new(WebRequestScope::new(request_context.cancellation().clone()));
+    let invocation = HandlerInvocation::new(Arc::clone(&request_context), scope)
+        .aop_invocation()
+        .await;
+    let target: Arc<InvocationTarget> =
+        Arc::new(|_invocation| Box::pin(async { Ok(Box::new("updated") as InvocationValue) }));
+
+    let result = context
+        .invocation_plans()
+        .get(&operation)
+        .expect("compiled authorization advisor")
+        .invoke(invocation, target)
+        .await
+        .expect("role and wildcard permission should pass");
+    assert_eq!(
+        result.downcast::<&'static str>().expect("target result"),
+        Box::new("updated")
+    );
+    let resolved_policy = context
+        .container()
+        .resolve::<VernalSaTokenPolicy>()
+        .expect("policy component");
+    assert!(Arc::ptr_eq(&policy, &resolved_policy));
+    assert!(Arc::ptr_eq(
+        components.authorization_policy(),
+        &resolved_policy
+    ));
+    context.close().await.expect("context should close");
+}
+
+#[tokio::test]
+async fn operation_policy_returns_403_and_never_calls_target_when_identity_is_insufficient() {
+    let manager = manager();
+    let token = manager.login("limited-user").await.expect("Sa-Token login");
+    manager
+        .set_roles("limited-user", vec!["operator".to_owned()])
+        .await
+        .expect("role setup");
+    let operation = Operation::new("/admin/reports", "GET");
+    let policy = Arc::new(
+        VernalSaTokenPolicy::new().require_all_roles(operation.clone(), ["operator", "auditor"]),
+    );
+    let components = SaTokenComponents::new(manager).with_authorization_policy(Arc::clone(&policy));
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+
+    let request_context = Arc::new(RequestContext::new(
+        RouteMetadata::new("/admin/reports", "GET", "/admin/reports"),
+        CancellationToken::new(),
+    ));
+    request_context
+        .extensions()
+        .insert(snapshot(
+            "/admin/reports",
+            Some(&format!("Bearer {}", token.as_str())),
+        ))
+        .await;
+    let scope = Arc::new(WebRequestScope::new(request_context.cancellation().clone()));
+    let invocation = HandlerInvocation::new(request_context, scope)
+        .aop_invocation()
+        .await;
+    let target_called = Arc::new(AtomicBool::new(false));
+    let observed_target = Arc::clone(&target_called);
+    let target: Arc<InvocationTarget> = Arc::new(move |_invocation| {
+        observed_target.store(true, Ordering::SeqCst);
+        Box::pin(async { Ok(Box::new(()) as InvocationValue) })
+    });
+
+    let error = context
+        .invocation_plans()
+        .get(&operation)
+        .expect("compiled authorization advisor")
+        .invoke(invocation, target)
+        .await
+        .expect_err("missing auditor role must fail");
+    let InvocationError::Target { source } = error else {
+        panic!("authorization rejection must remain a target failure");
+    };
+    let failure = source
+        .downcast::<WebFailure>()
+        .expect("framework-neutral Web failure");
+    assert_eq!(failure.problem().status(), 403);
+    assert_eq!(failure.problem().title(), "Permission is required");
+    assert!(!target_called.load(Ordering::SeqCst));
+    context.close().await.expect("context should close");
+}
+
+#[tokio::test]
+async fn operation_policy_requires_identity_even_without_path_auth_configuration() {
+    let operation = Operation::new("/billing", "POST");
+    let policy =
+        Arc::new(VernalSaTokenPolicy::new().require_any_role(operation.clone(), ["billing-admin"]));
+    let components = SaTokenComponents::new(manager()).with_authorization_policy(policy);
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+
+    let request_context = Arc::new(RequestContext::new(
+        RouteMetadata::new("/billing", "POST", "/billing"),
+        CancellationToken::new(),
+    ));
+    request_context
+        .extensions()
+        .insert(snapshot("/billing", None))
+        .await;
+    let scope = Arc::new(WebRequestScope::new(request_context.cancellation().clone()));
+    let invocation = HandlerInvocation::new(request_context, scope)
+        .aop_invocation()
+        .await;
+    let target: Arc<InvocationTarget> =
+        Arc::new(|_invocation| Box::pin(async { Ok(Box::new(()) as InvocationValue) }));
+
+    let error = context
+        .invocation_plans()
+        .get(&operation)
+        .expect("compiled authorization advisor")
+        .invoke(invocation, target)
+        .await
+        .expect_err("anonymous protected operation must fail");
+    let InvocationError::Target { source } = error else {
+        panic!("anonymous rejection must remain a target failure");
+    };
+    let failure = source
+        .downcast::<WebFailure>()
+        .expect("framework-neutral Web failure");
+    assert_eq!(failure.problem().status(), 401);
+    assert_eq!(failure.problem().title(), "Authentication is required");
+    context.close().await.expect("context should close");
+}
+
+#[tokio::test]
+async fn permission_backend_failure_remains_a_safe_500_with_internal_source_chain() {
+    let manager = Arc::new(
+        SaTokenManager::new(Arc::new(MemoryStorage::new()), SaTokenConfig::default())
+            .with_stp_interface(Arc::new(FailingPermissionSource)),
+    );
+    let token = manager.login("backend-user").await.expect("Sa-Token login");
+    let operation = Operation::new("/reports", "GET");
+    let policy = Arc::new(
+        VernalSaTokenPolicy::new().require_all_permissions(operation.clone(), ["reports:read"]),
+    );
+    let components = SaTokenComponents::new(manager).with_authorization_policy(Arc::clone(&policy));
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    components
+        .install(&mut application)
+        .expect("Sa-Token components should install");
+    let context = application.build().expect("application should build");
+    context.refresh().await.expect("context should refresh");
+    context.start().await.expect("context should start");
+
+    let request_context = Arc::new(RequestContext::new(
+        RouteMetadata::new("/reports", "GET", "/reports"),
+        CancellationToken::new(),
+    ));
+    request_context
+        .extensions()
+        .insert(snapshot(
+            "/reports",
+            Some(&format!("Bearer {}", token.as_str())),
+        ))
+        .await;
+    let scope = Arc::new(WebRequestScope::new(request_context.cancellation().clone()));
+    let invocation = HandlerInvocation::new(request_context, scope)
+        .aop_invocation()
+        .await;
+    let target: Arc<InvocationTarget> =
+        Arc::new(|_invocation| Box::pin(async { Ok(Box::new(()) as InvocationValue) }));
+
+    let error = context
+        .invocation_plans()
+        .get(&operation)
+        .expect("compiled authorization advisor")
+        .invoke(invocation, target)
+        .await
+        .expect_err("permission backend failure must fail closed");
+    let InvocationError::Target { source } = error else {
+        panic!("infrastructure failure must remain a target failure");
+    };
+    let failure = source
+        .downcast::<WebFailure>()
+        .expect("framework-neutral Web failure");
+    assert_eq!(failure.problem().status(), 500);
+    assert_eq!(
+        failure.problem().title(),
+        "Authentication service is unavailable"
+    );
+    assert!(failure.source().is_some());
     context.close().await.expect("context should close");
 }

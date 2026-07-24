@@ -9,6 +9,9 @@ pub enum VernalSaTokenError {
     /// Sa-Token 路由规则要求身份，但 Token 缺失或无效。
     #[error("authentication is required")]
     Unauthorized,
+    /// 已认证主体不满足操作声明的角色或权限规则。
+    #[error("access is forbidden by Sa-Token policy")]
+    Forbidden,
     /// AOP 调用没有携带 Vernal 请求上下文。
     #[error("Vernal request context is unavailable")]
     MissingRequestContext,
@@ -26,6 +29,7 @@ impl VernalSaTokenError {
     pub const fn safe_message(&self) -> &'static str {
         match self {
             Self::Unauthorized => "Authentication is required",
+            Self::Forbidden => "Permission is required",
             Self::MissingRequestContext => "Vernal request context is unavailable",
             Self::MissingRequestSnapshot => "Vernal HTTP request snapshot is unavailable",
             Self::Infrastructure(_) => "Authentication service is unavailable",
@@ -37,6 +41,7 @@ impl VernalSaTokenError {
     pub const fn status(&self) -> u16 {
         match self {
             Self::Unauthorized => 401,
+            Self::Forbidden => 403,
             Self::MissingRequestContext | Self::MissingRequestSnapshot => 500,
             Self::Infrastructure(_) => 500,
         }
@@ -53,6 +58,11 @@ impl VernalSaTokenError {
                 ProblemKind::Unauthenticated,
                 401,
                 "Authentication is required",
+            )),
+            Self::Forbidden => WebFailure::new(ProblemDetails::new(
+                ProblemKind::PolicyDenied,
+                403,
+                "Permission is required",
             )),
             Self::MissingRequestContext => WebFailure::new(ProblemDetails::new(
                 ProblemKind::Infrastructure,

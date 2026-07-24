@@ -6,7 +6,7 @@ use vernal_aop::{Interceptor, Invocation, InvocationError, InvocationFuture, Nex
 use vernal_http::HttpRequestSnapshot;
 use vernal_web::RequestContext;
 
-use crate::{VernalSaTokenBridge, VernalSaTokenError};
+use crate::{VernalSaTokenBridge, VernalSaTokenError, VernalSaTokenPolicy};
 
 /// 在 Vernal 环绕调用链中执行 Sa-Token-Rust 认证。
 ///
@@ -17,19 +17,35 @@ use crate::{VernalSaTokenBridge, VernalSaTokenError};
 #[derive(Clone)]
 pub struct VernalSaTokenInterceptor {
     bridge: Arc<VernalSaTokenBridge>,
+    policy: Arc<VernalSaTokenPolicy>,
 }
 
 impl VernalSaTokenInterceptor {
     /// 创建复用指定安全桥的认证拦截器。
     #[must_use]
     pub fn new(bridge: Arc<VernalSaTokenBridge>) -> Self {
-        Self { bridge }
+        Self {
+            bridge,
+            policy: VernalSaTokenPolicy::empty_shared(),
+        }
+    }
+
+    /// 创建同时执行认证与操作级授权的拦截器。
+    #[must_use]
+    pub fn with_policy(bridge: Arc<VernalSaTokenBridge>, policy: Arc<VernalSaTokenPolicy>) -> Self {
+        Self { bridge, policy }
     }
 
     /// 返回拦截器持有的桥接器。
     #[must_use]
     pub const fn bridge(&self) -> &Arc<VernalSaTokenBridge> {
         &self.bridge
+    }
+
+    /// 返回拦截器持有的不可变操作授权策略。
+    #[must_use]
+    pub const fn policy(&self) -> &Arc<VernalSaTokenPolicy> {
+        &self.policy
     }
 }
 
@@ -62,6 +78,18 @@ impl Interceptor for VernalSaTokenInterceptor {
             let authentication = self
                 .bridge
                 .authenticate(&snapshot, &request_context)
+                .await
+                .map_err(|error| InvocationError::target(error.into_web_failure()))?;
+
+            // 认证成功后再按不可变 Operation 策略授权。匿名操作没有规则时继续执行；
+            // 一旦声明角色或权限，缺少身份得到 401，身份不足得到 403。
+            let principal = request_context.principal().await;
+            self.policy
+                .authorize(
+                    invocation.operation(),
+                    self.bridge.manager(),
+                    principal.as_deref(),
+                )
                 .await
                 .map_err(|error| InvocationError::target(error.into_web_failure()))?;
 

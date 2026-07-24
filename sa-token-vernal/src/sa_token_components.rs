@@ -7,9 +7,11 @@ use vernal_aop::Advisor;
 use vernal_context::VernalApplicationBuilder;
 use vernal_ioc::{ComponentDefinition, DefinitionError};
 
-use crate::{VernalSaTokenBridge, VernalSaTokenInterceptor, VernalSaTokenPointcut};
+use crate::{
+    VernalSaTokenBridge, VernalSaTokenInterceptor, VernalSaTokenPointcut, VernalSaTokenPolicy,
+};
 
-/// 将 `SaTokenManager` 与 Vernal 安全桥原子装入应用上下文。
+/// 将 `SaTokenManager`、安全桥与操作授权策略原子装入应用上下文。
 ///
 /// Sa-Token-Rust 继续拥有 Token、Session、角色、权限、存储与路由鉴权语义；
 /// Vernal 只管理显式组件身份和依赖顺序。管理器作为应用已经构造好的 Rust 原生
@@ -17,6 +19,7 @@ use crate::{VernalSaTokenBridge, VernalSaTokenInterceptor, VernalSaTokenPointcut
 #[derive(Clone)]
 pub struct SaTokenComponents {
     bridge: Arc<VernalSaTokenBridge>,
+    policy: Arc<VernalSaTokenPolicy>,
     advisor_order: i32,
 }
 
@@ -26,6 +29,7 @@ impl SaTokenComponents {
     pub fn new(manager: Arc<SaTokenManager>) -> Self {
         Self {
             bridge: Arc::new(VernalSaTokenBridge::new(manager)),
+            policy: VernalSaTokenPolicy::empty_shared(),
             advisor_order: -1000,
         }
     }
@@ -47,6 +51,15 @@ impl SaTokenComponents {
         self
     }
 
+    /// 安装调用方已经构造完成的操作级授权策略。
+    ///
+    /// 传入的精确 `Arc` 会同时注册到 Vernal IoC，并交给认证拦截器复用。
+    #[must_use]
+    pub fn with_authorization_policy(mut self, policy: Arc<VernalSaTokenPolicy>) -> Self {
+        self.policy = policy;
+        self
+    }
+
     /// 返回组件包持有的原始 Manager 共享句柄。
     #[must_use]
     pub fn manager(&self) -> &Arc<SaTokenManager> {
@@ -59,29 +72,38 @@ impl SaTokenComponents {
         &self.bridge
     }
 
-    /// 生成 `SaTokenManager -> VernalSaTokenBridge` 显式组件定义。
-    ///
-    /// Manager 与 Bridge 都保留组件包持有的精确 `Arc` 身份，适合让 Web Plugin、
-    /// 后台任务、Vernal Context 和认证 Advisor 观察同一份登录状态。Bridge 定义
-    /// 仍显式声明对 Manager 的依赖，使启动校验与诊断图保持完整。
+    /// 返回组件包与认证 Advisor 共用的操作级授权策略。
     #[must_use]
-    pub fn definitions(&self) -> [ComponentDefinition; 2] {
+    pub const fn authorization_policy(&self) -> &Arc<VernalSaTokenPolicy> {
+        &self.policy
+    }
+
+    /// 生成 Manager、Bridge 与授权策略的显式组件定义。
+    ///
+    /// Manager、Bridge 与 Policy 都保留组件包持有的精确 `Arc` 身份，适合让
+    /// Web Plugin、后台任务、Vernal Context 和认证 Advisor 观察同一份登录状态
+    /// 与授权配置。Bridge 定义仍显式声明对 Manager 的依赖，使启动校验与诊断图
+    /// 保持完整。
+    #[must_use]
+    pub fn definitions(&self) -> [ComponentDefinition; 3] {
         let manager_definition = ComponentDefinition::shared_arc(Arc::clone(self.bridge.manager()));
 
-        // Bridge 与 Advisor 共用同一个 Arc；显式 depends_on 仍把 Manager -> Bridge
-        // 关系写入 Vernal 图，使启动前校验和诊断保持完整。
+        // Bridge、Policy 与 Advisor 共用精确 Arc；显式 depends_on 仍把
+        // Manager -> Bridge 关系写入 Vernal 图，使启动前校验和诊断保持完整。
         let bridge_definition = ComponentDefinition::shared_arc(Arc::clone(&self.bridge))
             .depends_on::<SaTokenManager>();
+        let policy_definition = ComponentDefinition::shared_arc(Arc::clone(&self.policy));
 
-        [manager_definition, bridge_definition]
+        [manager_definition, bridge_definition, policy_definition]
     }
 
     /// 将 Sa-Token 组件包原子安装到高层 Vernal 应用建造器。
     ///
     /// # Errors
     ///
-    /// 应用已注册 `SaTokenManager` 或 `VernalSaTokenBridge` 时返回
-    /// [`DefinitionError`]；失败不会留下部分组件定义。
+    /// 应用已注册 `SaTokenManager`、`VernalSaTokenBridge` 或
+    /// `VernalSaTokenPolicy` 时返回 [`DefinitionError`]；失败不会留下部分组件
+    /// 定义，也不会提前注册 Advisor。
     pub fn install<'a>(
         &self,
         application: &'a mut VernalApplicationBuilder,
@@ -89,7 +111,10 @@ impl SaTokenComponents {
         application.register_all(self.definitions())?;
         application.advisor(Advisor::new(
             VernalSaTokenPointcut,
-            VernalSaTokenInterceptor::new(Arc::clone(&self.bridge)),
+            VernalSaTokenInterceptor::with_policy(
+                Arc::clone(&self.bridge),
+                Arc::clone(&self.policy),
+            ),
             self.advisor_order,
         ));
         Ok(application)
