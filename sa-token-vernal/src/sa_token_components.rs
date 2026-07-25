@@ -1,21 +1,27 @@
-//! Sa-Token 原生对象的 Vernal 组件包。
+//! Sa-Token 原生对象的 Vernal 具名应用模块。
 
-use std::sync::Arc;
+use std::{error::Error, sync::Arc};
 
 use sa_token_core::{PathAuthConfig, SaTokenManager};
 use vernal_aop::{Advisor, LocalAdvisor};
-use vernal_context::VernalApplicationBuilder;
-use vernal_ioc::{ComponentDefinition, DefinitionError};
+use vernal_context::{
+    ApplicationModule, ApplicationModuleError, ApplicationModuleRegistrar, VernalApplicationBuilder,
+};
+use vernal_ioc::ComponentDefinition;
 
 use crate::{
     VernalSaTokenBridge, VernalSaTokenInterceptor, VernalSaTokenPointcut, VernalSaTokenPolicy,
 };
 
-/// 将 `SaTokenManager`、安全桥与操作授权策略原子装入应用上下文。
+/// 将 `SaTokenManager`、安全桥、授权策略与双 AOP Advisor 原子装入应用上下文。
 ///
 /// Sa-Token-Rust 继续拥有 Token、Session、角色、权限、存储与路由鉴权语义；
 /// Vernal 只管理显式组件身份和依赖顺序。管理器作为应用已经构造好的 Rust 原生
 /// 对象注册，不要求实现 Vernal 专用 trait，也不写入进程级全局变量。
+///
+/// 本对象同时实现 [`ApplicationModule`]。组件 Definition、Send Advisor 与 Local
+/// Advisor 先写入隔离 Registrar，只有模块身份与完整 IoC Bundle 都通过预检后才会
+/// 一次提交；任何 Definition 冲突都不会遗留半条安全拦截链。
 #[derive(Clone)]
 pub struct SaTokenComponents {
     bridge: Arc<VernalSaTokenBridge>,
@@ -97,19 +103,40 @@ impl SaTokenComponents {
         [manager_definition, bridge_definition, policy_definition]
     }
 
-    /// 将 Sa-Token 组件包原子安装到高层 Vernal 应用建造器。
+    /// 将 Sa-Token 安全模块原子安装到高层 Vernal 应用建造器。
     ///
     /// # Errors
     ///
-    /// 应用已注册 `SaTokenManager`、`VernalSaTokenBridge` 或
-    /// `VernalSaTokenPolicy` 时返回 [`DefinitionError`]；失败不会留下部分组件
-    /// 定义，也不会提前注册 Send/Local Advisor。
+    /// 模块身份重复，或应用已注册 `SaTokenManager`、`VernalSaTokenBridge`、
+    /// `VernalSaTokenPolicy` 时返回 [`ApplicationModuleError`]；失败不会留下
+    /// 部分组件定义、Send Advisor、Local Advisor 或已占用的模块身份。
     pub fn install<'a>(
         &self,
         application: &'a mut VernalApplicationBuilder,
-    ) -> Result<&'a mut VernalApplicationBuilder, DefinitionError> {
-        application.register_all(self.definitions())?;
-        application.advisor(Advisor::new(
+    ) -> Result<&'a mut VernalApplicationBuilder, ApplicationModuleError> {
+        application.register_module(self.clone())
+    }
+}
+
+impl ApplicationModule for SaTokenComponents {
+    /// 返回参与应用级去重和诊断的稳定安全模块身份。
+    fn name(&self) -> &'static str {
+        "sa-token.security"
+    }
+
+    /// 将组件图和两类安全 Advisor 暂存到隔离 Registrar。
+    ///
+    /// 本方法不直接修改真实 `VernalApplicationBuilder`。即使 Definition 校验最终
+    /// 失败，已经构造的 Advisor 也只存在于随错误一起丢弃的临时模块中。
+    fn configure(
+        self,
+        registrar: &mut ApplicationModuleRegistrar,
+    ) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
+        registrar.register_all(self.definitions());
+
+        // Send 与 Local 执行平面必须复用同一 Bridge、Policy 和顺序，避免不同 Web
+        // Adapter 产生认证或授权语义漂移。
+        registrar.advisor(Advisor::new(
             VernalSaTokenPointcut,
             VernalSaTokenInterceptor::with_policy(
                 Arc::clone(&self.bridge),
@@ -117,7 +144,7 @@ impl SaTokenComponents {
             ),
             self.advisor_order,
         ));
-        application.local_advisor(LocalAdvisor::new(
+        registrar.local_advisor(LocalAdvisor::new(
             VernalSaTokenPointcut,
             VernalSaTokenInterceptor::with_policy(
                 Arc::clone(&self.bridge),
@@ -125,6 +152,7 @@ impl SaTokenComponents {
             ),
             self.advisor_order,
         ));
-        Ok(application)
+
+        Ok(())
     }
 }

@@ -26,8 +26,9 @@ use vernal_aop::{
     InvocationError, InvocationTarget, InvocationValue, LocalInvocationTarget,
     LocalInvocationValue, Operation,
 };
-use vernal_context::VernalApplicationBuilder;
+use vernal_context::{ApplicationModuleError, VernalApplicationBuilder};
 use vernal_http::HttpRequestSnapshot;
+use vernal_ioc::ComponentDefinition;
 use vernal_web::{HandlerInvocation, RequestContext, RouteMetadata, WebFailure, WebRequestScope};
 
 fn snapshot(uri: &str, authorization: Option<&str>) -> HttpRequestSnapshot {
@@ -171,10 +172,15 @@ async fn component_bundle_preserves_manager_identity_and_rejects_duplicates_atom
     components
         .install(&mut application)
         .expect("Sa-Token components should install");
-    assert!(
-        components.install(&mut application).is_err(),
-        "duplicate bundle should be rejected without replacing the first install"
-    );
+    let Err(duplicate) = components.install(&mut application) else {
+        panic!("duplicate security module should be rejected");
+    };
+    assert!(matches!(
+        duplicate,
+        ApplicationModuleError::DuplicateName {
+            name: "sa-token.security"
+        }
+    ));
 
     let context = application.build().expect("application should build");
     context.refresh().await.expect("context should refresh");
@@ -207,6 +213,67 @@ async fn component_bundle_preserves_manager_identity_and_rejects_duplicates_atom
     ));
 
     context.close().await.expect("context should close");
+}
+
+#[tokio::test]
+async fn definition_conflict_rolls_back_both_security_advisors() {
+    let manager = manager();
+    let operation = Operation::new("protected_handler", "invoke");
+    let components = SaTokenComponents::new(Arc::clone(&manager));
+    let mut application =
+        VernalApplicationBuilder::current().expect("Tokio runtime should be available");
+    application.operation(operation.clone());
+    application
+        .register(ComponentDefinition::shared_arc(Arc::clone(&manager)))
+        .expect("pre-existing manager definition");
+
+    let Err(error) = components.install(&mut application) else {
+        panic!("duplicate manager must reject the complete security module");
+    };
+    assert!(matches!(
+        error,
+        ApplicationModuleError::Definition {
+            module: "sa-token.security",
+            ..
+        }
+    ));
+
+    // Definition 冲突发生时，隔离 Registrar 中的 Bridge、Policy、Send Advisor 与
+    // Local Advisor 必须一起丢弃，不能让应用在缺少安全组件时生成残缺调用计划。
+    let context = application
+        .build()
+        .expect("pre-existing manager alone should still build");
+    assert!(
+        context
+            .invocation_plans()
+            .get(&operation)
+            .is_some_and(|plan| plan.is_empty())
+    );
+    assert!(
+        context
+            .local_invocation_plans()
+            .get(&operation)
+            .is_some_and(|plan| plan.is_empty())
+    );
+    assert!(
+        context
+            .container()
+            .resolve::<VernalSaTokenBridge>()
+            .is_err()
+    );
+    assert!(
+        context
+            .container()
+            .resolve::<VernalSaTokenPolicy>()
+            .is_err()
+    );
+    assert!(Arc::ptr_eq(
+        &context
+            .container()
+            .resolve::<SaTokenManager>()
+            .expect("original manager should remain"),
+        &manager
+    ));
 }
 
 #[tokio::test]

@@ -18,11 +18,13 @@ Run the downstream future through `VernalAuthentication::run` so `StpUtil`
 continues to see the correct request identity across `.await` and Tokio worker
 switches.
 
-`SaTokenComponents` additionally installs a prebuilt `Arc<SaTokenManager>`, its
-`VernalSaTokenBridge`, and an immutable `VernalSaTokenPolicy` as one atomic
-Vernal component bundle. It also registers `VernalSaTokenInterceptor` as an
-early Send-AOP Advisor and Local-AOP Advisor. The exact Manager, Bridge, and
-Policy identities are shared by the container and both execution planes.
+`SaTokenComponents` is the named `sa-token.security` `ApplicationModule`. It
+installs a prebuilt `Arc<SaTokenManager>`, its `VernalSaTokenBridge`, an
+immutable `VernalSaTokenPolicy`, and both security Advisors as one atomic
+Vernal transaction. The exact Manager, Bridge, and Policy identities are shared
+by the container and both execution planes. A duplicate module or component
+definition rejects the complete transaction without leaving either a Send-AOP
+or Local-AOP plan behind.
 Authentication and authorization can short-circuit before the handler, and the
 resulting `WebFailure` is mapped by Vernal's Axum, Poem, Tonic, and Actix
 adapters without leaking token, role, permission, or storage details:
@@ -85,15 +87,15 @@ This bridge is experimental and `publish = false` while Vernal's API is
 `VernalAuthentication::run` 执行，以保证 `StpUtil` 跨 `.await` 和 Tokio Worker
 切换后仍读取当前请求身份。
 
-`SaTokenComponents` 还会把预构造的 `Arc<SaTokenManager>`、
-`VernalSaTokenBridge` 与不可变 `VernalSaTokenPolicy` 作为一个原子组件包安装到
-Vernal，并把 `VernalSaTokenInterceptor` 注册为靠前执行的 AOP Advisor。容器与
-拦截器共享完全相同的 Manager、Bridge 和 Policy `Arc`；组件包会同时注册
-Send-AOP 与 Local-AOP Advisor，让支持 Send 的 Adapter 和 Actix 的 `Rc`、
-非 `Send` Service Future 使用完全一致的安全语义。认证或授权可以在 Handler 前短路，
-产生的 `WebFailure` 由 Vernal Axum、Poem、Tonic 与 Actix Adapter 映射，客户端
-不会看到 Token、角色、权限或存储错误细节。Bridge 对 Manager 的依赖仍显式进入
-启动期组件图；任一组件标识冲突时，不会留下只注册一半的状态。
+`SaTokenComponents` 是具名 `sa-token.security` `ApplicationModule`，会把预构造的
+`Arc<SaTokenManager>`、`VernalSaTokenBridge`、不可变
+`VernalSaTokenPolicy`、Send Advisor 与 Local Advisor 作为一个事务安装到
+Vernal。容器与拦截器共享完全相同的 Manager、Bridge 和 Policy `Arc`；支持 Send
+的 Adapter 和 Actix 的 `Rc`、非 `Send` Service Future 因而使用完全一致的安全
+语义。模块或任一组件标识冲突时，完整事务被拒绝，不会遗留任何残缺组件或安全
+AOP 计划。认证或授权可以在 Handler 前短路，产生的 `WebFailure` 由 Vernal
+Axum、Poem、Tonic 与 Actix Adapter 映射，客户端不会看到 Token、角色、权限或
+存储错误细节。Bridge 对 Manager 的依赖仍显式进入启动期组件图。
 
 HTTP Adapter 的操作身份是 `Operation(path_template, http_method)`，Tonic 则是
 `Operation(service_name, method_name)`。应用需要声明操作并安装相应严格 AOP
