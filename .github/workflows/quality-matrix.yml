@@ -1,0 +1,88 @@
+name: quality-matrix
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+
+  production-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: ./scripts/check_feature_matrix.sh full
+
+  observability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p sa-token-plugin-observability --all-features
+      - run: cargo test -p sa-token-diagnostics --features pprof,tokio-console,dhat-heap
+      - run: cargo bench -p sa-token-core --bench core_hot_paths --no-run
+
+  instruction-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install matching Gungraun runner and Valgrind
+        uses: gungraun/setup-gungraun@v1
+      - run: cargo bench -p sa-token-core --bench instruction_hot_paths
+
+  performance:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: sa_token_bench
+          POSTGRES_DB: sa_token_bench
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sa_token_bench"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      SA_TOKEN_BENCH_REDIS_URL: redis://127.0.0.1:6379/0
+      SA_TOKEN_BENCH_DATABASE_URL: postgres://postgres:sa_token_bench@127.0.0.1:5432/sa_token_bench
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo bench -p sa-token-core --bench auth_throughput -- --sample-size 10 --warm-up-time 0.1 --measurement-time 0.2 --noplot
+      - run: cargo bench -p sa-token-performance-tests --bench framework_adapter_comparison -- --sample-size 10 --warm-up-time 0.1 --measurement-time 0.2 --noplot
+      - run: cargo bench -p sa-token-performance-tests --bench backend_latency -- --sample-size 10 --warm-up-time 0.1 --measurement-time 0.2 --noplot
+      - run: cargo run -p sa-token-performance-tests --release --bin dhat_auth_memory
+      - run: cargo run -p sa-token-performance-tests --release --bin jemalloc_auth_memory

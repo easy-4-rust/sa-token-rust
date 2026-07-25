@@ -1,0 +1,41 @@
+{
+  "source": {"repository": "Sa-Token", "commit": "902886c2149261ccb53a9c982068b7ccd0990237", "version": "1.45.0"},
+  "config_defaults": {
+    "token_name": "satoken",
+    "timeout": 2592000,
+    "active_timeout": -1,
+    "dynamic_active_timeout": false,
+    "is_concurrent": true,
+    "is_share": false,
+    "max_login_count": 12,
+    "max_try_times": 12,
+    "is_read_body": true,
+    "is_read_header": true,
+    "is_read_cookie": true,
+    "is_lasting_cookie": true,
+    "is_write_header": false,
+    "token_style": "uuid",
+    "data_refresh_period": 30,
+    "token_session_check_login": true,
+    "auto_renew": true,
+    "cookie_auto_fill_prefix": false,
+    "is_print": true,
+    "is_log": false
+  },
+  "java_cookie_defaults": {
+    "domain_is_null": true,
+    "path_is_null": true,
+    "secure": false,
+    "http_only": false,
+    "same_site_is_null": true
+  },
+  "token_styles": {
+    "uuid": {"length": 36, "hyphens": 4},
+    "simple_uuid": {"length": 32, "base62": true},
+    "random_32": {"length": 32, "base62": true},
+    "random_64": {"length": 64, "base62": true},
+    "random_128": {"length": 128, "base62": true},
+    "tik": {"length": 36, "separator_indexes": [2, 17], "suffix": "__", "segments": [2, 14, 16]}
+  },
+  "apikey_defaults": {"prefix": "AK-", "random_length": 36, "timeout": 2592000, "record_index": true}
+}

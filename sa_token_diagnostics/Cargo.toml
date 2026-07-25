@@ -1,0 +1,21 @@
+[package]
+name = "sa-token-diagnostics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Controlled production diagnostics for sa-token-rust applications"
+
+[dependencies]
+thiserror = { workspace = true }
+tokio = { workspace = true }
+console-subscriber = { workspace = true, optional = true }
+pprof = { workspace = true, optional = true, features = ["flamegraph"] }
+dhat = { workspace = true, optional = true }
+
+[features]
+default = []
+tokio-console = ["dep:console-subscriber"]
+pprof = ["dep:pprof"]
+dhat-heap = ["dep:dhat"]

@@ -71,10 +71,41 @@ impl VernalSaTokenInterceptor {
             .await
             .ok_or(VernalSaTokenError::MissingRequestSnapshot)?;
 
+        // 审计日志：记录认证尝试
+        let method = snapshot.method().as_str();
+        let path = snapshot.uri().path();
+        tracing::debug!(
+            method = %method,
+            path = %path,
+            operation = %invocation.operation().method(),
+            "Sa-Token 认证尝试"
+        );
+
         let authentication = self
             .bridge
             .authenticate(&snapshot, &request_context)
-            .await?;
+            .await
+            .map_err(|error| {
+                // 审计日志：记录认证失败
+                tracing::warn!(
+                    method = %method,
+                    path = %path,
+                    error = %error,
+                    "Sa-Token 认证失败"
+                );
+                error
+            })?;
+
+        // 审计日志：记录认证成功
+        if let Some(login_id) = authentication.login_id() {
+            tracing::info!(
+                method = %method,
+                path = %path,
+                login_id = %login_id,
+                operation = %invocation.operation().method(),
+                "Sa-Token 认证成功"
+            );
+        }
 
         // 认证成功后再按不可变 Operation 策略授权。匿名操作没有规则时继续执行；
         // 一旦声明角色或权限，缺少身份得到 401，身份不足得到 403。
@@ -85,7 +116,18 @@ impl VernalSaTokenInterceptor {
                 self.bridge.manager(),
                 principal.as_deref(),
             )
-            .await?;
+            .await
+            .map_err(|error| {
+                // 审计日志：记录授权失败
+                tracing::warn!(
+                    method = %method,
+                    path = %path,
+                    operation = %invocation.operation().method(),
+                    error = %error,
+                    "Sa-Token 授权失败"
+                );
+                error
+            })?;
 
         Ok(authentication)
     }

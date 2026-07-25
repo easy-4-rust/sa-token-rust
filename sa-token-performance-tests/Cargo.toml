@@ -1,0 +1,44 @@
+[package]
+name = "sa-token-performance-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+description = "Reproducible performance and memory regression harnesses for sa-token-rust"
+
+[dependencies]
+sa-token-core = { version = "0.1.18", path = "../sa-token-core" }
+sa-token-adapter = { version = "0.1.18", path = "../sa-token-adapter" }
+sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage-memory" }
+sa-token-storage-redis = { version = "0.1.18", path = "../sa-token-storage-redis" }
+sa-token-storage-database = { version = "0.1.18", path = "../sa-token-storage-database" }
+sa-token-plugin-axum = { version = "0.1.18", path = "../sa-token-plugin-axum", default-features = false, features = ["axum-08"] }
+sa-token-plugin-actix-web-v4 = { version = "0.1.18", path = "../sa-token-plugin-actix-web-v4", default-features = false }
+sa-token-plugin-poem = { version = "0.1.18", path = "../sa-token-plugin-poem", default-features = false, features = ["poem-03"] }
+sa-token-plugin-tonic = { version = "0.1.18", path = "../sa-token-plugin-tonic", default-features = false, features = ["tonic-012"] }
+tokio = { workspace = true }
+criterion = { workspace = true }
+http = { workspace = true }
+actix-web = "4.13.0"
+poem = "3"
+dhat = { workspace = true }
+tikv-jemallocator = { workspace = true }
+tikv-jemalloc-ctl = { workspace = true }
+
+[[bench]]
+name = "backend_latency"
+harness = false
+
+[[bench]]
+name = "framework_adapter_comparison"
+harness = false
+
+[[bin]]
+name = "dhat_auth_memory"
+path = "src/bin/dhat_auth_memory.rs"
+
+[[bin]]
+name = "jemalloc_auth_memory"
+path = "src/bin/jemalloc_auth_memory.rs"
