@@ -16,7 +16,8 @@ pub const SAFE_AUTH_VALUE: &str = "ok";
 
 impl SaTokenManager {
     fn safe_key(&self, token: &str, service: &str) -> String {
-        self.config.make_key("safe:", &format!("{}:{}", token, service))
+        self.config
+            .make_key("safe:", &format!("{}:{}", token, service))
     }
 
     /// 为指定 token 开启二级认证
@@ -48,7 +49,10 @@ impl SaTokenManager {
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         self.event_bus
-            .publish(crate::event::SaTokenEvent::open_safe(token.as_str(), service))
+            .publish(crate::event::SaTokenEvent::open_safe(
+                token.as_str(),
+                service,
+            ))
             .await;
 
         Ok(())
@@ -94,7 +98,10 @@ impl SaTokenManager {
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         self.event_bus
-            .publish(crate::event::SaTokenEvent::close_safe(token.as_str(), service))
+            .publish(crate::event::SaTokenEvent::close_safe(
+                token.as_str(),
+                service,
+            ))
             .await;
 
         Ok(())
@@ -106,7 +113,11 @@ impl SaTokenManager {
         token: &TokenValue,
         service: &str,
     ) -> SaTokenResult<Option<i64>> {
-        match self.storage.ttl(&self.safe_key(token.as_str(), service)).await {
+        match self
+            .storage
+            .ttl(&self.safe_key(token.as_str(), service))
+            .await
+        {
             Ok(Some(d)) => Ok(Some(d.as_secs() as i64)),
             Ok(None) => Ok(None),
             Err(e) => Err(SaTokenError::StorageError(e.to_string())),
@@ -122,10 +133,7 @@ mod tests {
     use std::sync::Arc;
 
     fn manager() -> SaTokenManager {
-        SaTokenManager::new(
-            Arc::new(MemoryStorage::new()),
-            SaTokenConfig::default(),
-        )
+        SaTokenManager::new(Arc::new(MemoryStorage::new()), SaTokenConfig::default())
     }
 
     #[tokio::test]

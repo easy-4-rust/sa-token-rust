@@ -5,8 +5,8 @@
 //! 再从 `sa-token-core::router` 重导出 [`run_auth_flow`]、[`PathAuthConfig`]；具体 HTTP 由各版本绑定 crate（`*-v4`、`*-v5`）实现。
 
 pub use sa_token_core::router::{
-    create_context, extract_token, process_auth, run_auth_flow, AuthFlowResult, AuthResult,
-    PathAuthConfig,
+    AuthFlowResult, AuthResult, PathAuthConfig, create_context, extract_token, process_auth,
+    run_auth_flow,
 };
 
 pub mod error_response;

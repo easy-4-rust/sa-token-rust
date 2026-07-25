@@ -15,11 +15,7 @@ pub trait StpInterface: Send + Sync {
         login_type: &str,
     ) -> SaTokenResult<Vec<String>>;
 
-    async fn get_role_list(
-        &self,
-        login_id: &str,
-        login_type: &str,
-    ) -> SaTokenResult<Vec<String>>;
+    async fn get_role_list(&self, login_id: &str, login_type: &str) -> SaTokenResult<Vec<String>>;
 
     /// 返回封禁等级；`None` 表示未封禁
     async fn is_disabled(&self, login_id: &str, service: &str) -> SaTokenResult<Option<i32>> {

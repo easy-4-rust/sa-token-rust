@@ -80,9 +80,7 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for SaTokenLayer {
         let flow = run_auth_flow(&adapter, &self.state.manager, self.path_config.as_ref()).await;
 
         if flow.should_reject() {
-            return Ok(
-                tide_017::Response::builder(tide_017::StatusCode::Unauthorized).build(),
-            );
+            return Ok(tide_017::Response::builder(tide_017::StatusCode::Unauthorized).build());
         }
 
         if let Some(t) = &flow.token {

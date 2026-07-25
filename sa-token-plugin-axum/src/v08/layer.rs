@@ -2,13 +2,13 @@
 //
 //! Axum **0.8** Tower `Layer`：`AxumRequestSnapshot` + **`run_auth_flow`**（可选 **`PathAuthConfig`**）。
 
-use std::pin::Pin;
-use std::task::{Context, Poll};
 use http::{Request, Response};
 use http_body;
 use sa_token_core::{router::PathAuthConfig, router::run_auth_flow};
-use tower_08 as tower;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use tower::{Layer, Service};
+use tower_08 as tower;
 
 use crate::shared::adapter::AxumRequestSnapshot;
 use crate::shared::state::SaTokenState;

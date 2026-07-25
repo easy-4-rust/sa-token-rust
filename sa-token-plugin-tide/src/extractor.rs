@@ -1,6 +1,6 @@
-use tide_017::{Request, Response, StatusCode};
-use sa_token_core::{token::TokenValue, error::messages};
+use sa_token_core::{error::messages, token::TokenValue};
 use serde_json::json;
+use tide_017::{Request, Response, StatusCode};
 
 /// 中文: 认证错误 | English: Authentication error
 #[derive(Debug)]
@@ -11,20 +11,21 @@ impl AuthError {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// 中文: 获取错误消息 | English: Get error message
     pub fn message(&self) -> &'static str {
         messages::AUTH_ERROR
     }
-    
+
     /// 中文: 转换为 JSON 字符串 | English: Convert to JSON string
     pub fn to_json(&self) -> String {
         json!({
             "code": 401,
             "message": self.message()
-        }).to_string()
+        })
+        .to_string()
     }
-    
+
     /// 中文: 转换为 Response | English: Convert to Response
     pub fn to_response(&self) -> Response {
         let mut res = Response::new(StatusCode::Unauthorized);
@@ -49,9 +50,11 @@ impl SaTokenExtractor {
     pub fn token(&self) -> &TokenValue {
         &self.0
     }
-    
+
     /// 中文: 中间件将 Token 写入扩展，这里提取 | English: Middleware writes TokenValue into extensions
-    pub fn from_request<State: Clone + Send + Sync + 'static>(req: &Request<State>) -> Result<Self, AuthError> {
+    pub fn from_request<State: Clone + Send + Sync + 'static>(
+        req: &Request<State>,
+    ) -> Result<Self, AuthError> {
         req.ext::<TokenValue>()
             .cloned()
             .map(SaTokenExtractor)
@@ -68,7 +71,7 @@ impl OptionalSaTokenExtractor {
     pub fn token(&self) -> Option<&TokenValue> {
         self.0.as_ref()
     }
-    
+
     /// 中文: 直接返回 Option<TokenValue> | English: Returns Option<TokenValue> directly
     pub fn from_request<State: Clone + Send + Sync + 'static>(req: &Request<State>) -> Self {
         let token = req.ext::<TokenValue>().cloned();
@@ -85,9 +88,11 @@ impl LoginIdExtractor {
     pub fn login_id(&self) -> &str {
         &self.0
     }
-    
+
     /// 中文: 若登录成功，中间件会注入 login_id | English: Middleware injects login_id when user authenticated
-    pub fn from_request<State: Clone + Send + Sync + 'static>(req: &Request<State>) -> Result<Self, AuthError> {
+    pub fn from_request<State: Clone + Send + Sync + 'static>(
+        req: &Request<State>,
+    ) -> Result<Self, AuthError> {
         req.ext::<String>()
             .cloned()
             .map(LoginIdExtractor)

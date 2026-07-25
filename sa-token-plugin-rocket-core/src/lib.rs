@@ -5,8 +5,8 @@
 //! 包含 [`SaTokenState`] / Builder、JSON 错误体辅助；为重绑定层重导出路由相关 API。
 
 pub use sa_token_core::router::{
-    create_context, extract_token, process_auth, run_auth_flow, AuthFlowResult, AuthResult,
-    PathAuthConfig,
+    AuthFlowResult, AuthResult, PathAuthConfig, create_context, extract_token, process_auth,
+    run_auth_flow,
 };
 
 pub mod error_response;

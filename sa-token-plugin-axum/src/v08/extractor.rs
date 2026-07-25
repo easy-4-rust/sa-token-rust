@@ -2,13 +2,13 @@
 //
 //! Axum 0.8 extractors.
 
-use axum_08 as axum;
 use axum::{
-    extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
-    response::{IntoResponse, Response},
     Json,
+    extract::FromRequestParts,
+    http::{StatusCode, request::Parts},
+    response::{IntoResponse, Response},
 };
+use axum_08 as axum;
 use sa_token_core::{error::messages, token::TokenValue};
 use serde_json::json;
 

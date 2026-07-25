@@ -7,8 +7,8 @@ use std::task::{Context, Poll};
 use http::{Request, Response, StatusCode};
 use http_body;
 use serde_json::json;
-use tower_08 as tower;
 use tower::{Layer, Service};
+use tower_08 as tower;
 
 use sa_token_core::error::messages;
 
@@ -83,8 +83,9 @@ where
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future =
-        std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
@@ -107,7 +108,9 @@ where
                 .unwrap_or_default();
 
                 if let Ok(header_value) = http::header::HeaderValue::from_str(&error_json) {
-                    response.headers_mut().insert("X-Sa-Token-Error", header_value);
+                    response
+                        .headers_mut()
+                        .insert("X-Sa-Token-Error", header_value);
                 }
 
                 return Ok(response);
@@ -127,8 +130,9 @@ where
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future =
-        std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.inner.poll_ready(cx)
@@ -140,9 +144,10 @@ where
 
         Box::pin(async move {
             if let Some(login_id) = request.extensions().get::<String>()
-                && sa_token_core::StpUtil::has_permission(login_id, &permission).await {
-                    return inner.call(request).await;
-                }
+                && sa_token_core::StpUtil::has_permission(login_id, &permission).await
+            {
+                return inner.call(request).await;
+            }
 
             let mut response = Response::builder()
                 .status(StatusCode::FORBIDDEN)
@@ -156,7 +161,9 @@ where
             .unwrap_or_default();
 
             if let Ok(header_value) = http::header::HeaderValue::from_str(&error_json) {
-                response.headers_mut().insert("X-Sa-Token-Error", header_value);
+                response
+                    .headers_mut()
+                    .insert("X-Sa-Token-Error", header_value);
             }
 
             Ok(response)

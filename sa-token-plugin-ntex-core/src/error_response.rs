@@ -1,7 +1,7 @@
 //! Shared JSON bodies for HTTP bindings (framework-agnostic core).
 
 use sa_token_core::error::messages;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub fn unauthorized_body() -> Value {
     json!({ "code": 401, "message": messages::AUTH_ERROR })

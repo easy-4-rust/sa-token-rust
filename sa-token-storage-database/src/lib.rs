@@ -83,13 +83,12 @@ pub fn pattern_to_like(pattern: &str) -> String {
 #[async_trait]
 impl SaStorage for DatabaseStorage {
     async fn get(&self, key: &str) -> StorageResult<Option<String>> {
-        let row: Option<(String, Option<DateTime<Utc>>)> = sqlx::query_as(
-            "SELECT value, expire_at FROM sa_token_storage WHERE key = $1",
-        )
-        .bind(key)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
+        let row: Option<(String, Option<DateTime<Utc>>)> =
+            sqlx::query_as("SELECT value, expire_at FROM sa_token_storage WHERE key = $1")
+                .bind(key)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
 
         match row {
             Some((_value, expire_at)) if Self::is_expired(expire_at) => {
@@ -102,7 +101,8 @@ impl SaStorage for DatabaseStorage {
     }
 
     async fn set(&self, key: &str, value: &str, ttl: Option<Duration>) -> StorageResult<()> {
-        let expire_at: Option<DateTime<Utc>> = ttl.map(|d| Utc::now() + chrono::Duration::from_std(d).unwrap());
+        let expire_at: Option<DateTime<Utc>> =
+            ttl.map(|d| Utc::now() + chrono::Duration::from_std(d).unwrap());
 
         sqlx::query(
             r#"
@@ -156,13 +156,12 @@ impl SaStorage for DatabaseStorage {
     }
 
     async fn ttl(&self, key: &str) -> StorageResult<Option<Duration>> {
-        let row: Option<Option<DateTime<Utc>>> = sqlx::query_scalar(
-            "SELECT expire_at FROM sa_token_storage WHERE key = $1",
-        )
-        .bind(key)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
+        let row: Option<Option<DateTime<Utc>>> =
+            sqlx::query_scalar("SELECT expire_at FROM sa_token_storage WHERE key = $1")
+                .bind(key)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| StorageError::OperationFailed(e.to_string()))?;
 
         match row {
             None => Ok(None),
@@ -176,11 +175,7 @@ impl SaStorage for DatabaseStorage {
                 if remaining.num_milliseconds() <= 0 {
                     Ok(Some(Duration::ZERO))
                 } else {
-                    Ok(Some(
-                        remaining
-                            .to_std()
-                            .unwrap_or(Duration::ZERO),
-                    ))
+                    Ok(Some(remaining.to_std().unwrap_or(Duration::ZERO)))
                 }
             }
         }
@@ -242,7 +237,10 @@ mod postgres_tests {
             return;
         };
         let storage = DatabaseStorage::new(&url).await.expect("connect");
-        storage.set("sa:test:1", "v1", Some(Duration::from_secs(60))).await.unwrap();
+        storage
+            .set("sa:test:1", "v1", Some(Duration::from_secs(60)))
+            .await
+            .unwrap();
         assert_eq!(storage.get("sa:test:1").await.unwrap(), Some("v1".into()));
         assert!(storage.exists("sa:test:1").await.unwrap());
         let ttl = storage.ttl("sa:test:1").await.unwrap();

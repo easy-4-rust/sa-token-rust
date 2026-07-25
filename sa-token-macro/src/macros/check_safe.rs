@@ -5,7 +5,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, LitStr};
+use syn::{ItemFn, LitStr, parse_macro_input};
 
 /// `#[sa_check_safe]` / `#[sa_check_safe("pay")]`
 pub fn sa_check_safe_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -16,9 +16,12 @@ pub fn sa_check_safe_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let input = parse_macro_input!(item as ItemFn);
-    expand_async_fn(&input, quote! {
-        sa_token_core::StpUtil::check_safe(#service).await?;
-    })
+    expand_async_fn(
+        &input,
+        quote! {
+            sa_token_core::StpUtil::check_safe(#service).await?;
+        },
+    )
 }
 
 fn expand_async_fn(input: &ItemFn, check_code: TokenStream2) -> TokenStream {

@@ -190,7 +190,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("========================================\n");
 
     let token1 = StpUtil::login("user_10086").await?;
-    println!("\nToken 已生成（{} 字节，值不输出）\n", token1.as_str().len());
+    println!(
+        "\nToken 已生成（{} 字节，值不输出）\n",
+        token1.as_str().len()
+    );
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
@@ -200,7 +203,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("========================================\n");
 
     let token2 = StpUtil::login("user_10087").await?;
-    println!("\nToken 已生成（{} 字节，值不输出）\n", token2.as_str().len());
+    println!(
+        "\nToken 已生成（{} 字节，值不输出）\n",
+        token2.as_str().len()
+    );
 
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 

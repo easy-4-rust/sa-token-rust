@@ -1,36 +1,36 @@
 // Author: 金书记
 //
 //! Login check macro
-//! 
+//!
 //! Provides compile-time login check that automatically inserts authentication verification
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn};
+use syn::{ItemFn, parse_macro_input};
 
 /// Login check macro
-/// 
+///
 /// Functions annotated with this macro will check if the user is logged in before execution.
-/// 
+///
 /// # Requirements
-/// 
+///
 /// - Function must be async (`async fn`)
 /// - Function must return `Result<T, E>` where `E` implements `From<sa_token_core::SaTokenError>`
 /// - Must be used with framework middleware (e.g., Axum's SaTokenLayer) which extracts and validates tokens
-/// 
+///
 /// # How it works
-/// 
+///
 /// 1. Compile time: Inserts `StpUtil::check_login_current()?;` at the beginning of function body
 /// 2. Runtime: Executes login check, returns `SaTokenError::NotLogin` if not logged in
 /// 3. On failure: Error is propagated via `?` operator, framework converts to HTTP status code (typically 401)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust,ignore
 /// use axum::{response::Json, http::StatusCode};
 /// use sa_token_macro::sa_check_login;
-/// 
+///
 /// #[sa_check_login]
 /// async fn user_dashboard() -> Result<Json<serde_json::Value>, StatusCode> {
 ///     // If not logged in, check_login_current()? will return error
@@ -40,16 +40,16 @@ use syn::{parse_macro_input, ItemFn};
 ///     })))
 /// }
 /// ```
-/// 
+///
 /// # Notes
-/// 
+///
 /// - Must be used with framework middleware (e.g., Axum's SaTokenLayer) which sets up context
 /// - Only supports async functions
 /// - Function must return Result type for `?` operator to work
 /// - Supports generic parameters and lifetime annotations
 pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);
-    
+
     // Extract function signature components
     let fn_name = &input.sig.ident;
     let fn_inputs = &input.sig.inputs;
@@ -60,15 +60,17 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
     let fn_asyncness = &input.sig.asyncness;
     let fn_generics = &input.sig.generics;
     let fn_where_clause = &input.sig.generics.where_clause;
-    
+
     // Check if function is async
     if fn_asyncness.is_none() {
         return syn::Error::new_spanned(
             fn_name,
-            "sa_check_login macro requires function to be async (async fn)"
-        ).to_compile_error().into();
+            "sa_check_login macro requires function to be async (async fn)",
+        )
+        .to_compile_error()
+        .into();
     }
-    
+
     // Generate authentication check code
     // Insert login check at the beginning of function body
     let auth_check = quote! {
@@ -78,7 +80,7 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
             return Err(sa_token_core::SaTokenError::NotLogin.into());
         }
     };
-    
+
     // Generate expanded function
     let expanded: TokenStream2 = quote! {
         // Preserve original attributes
@@ -88,12 +90,12 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
         #fn_vis #fn_asyncness fn #fn_name #fn_generics(#fn_inputs) #fn_output #fn_where_clause {
             // Insert authentication check at beginning of function body
             #auth_check
-            
+
             // Original function body
             #fn_body
         }
     };
-    
+
     expanded.into()
 }
 
@@ -147,7 +149,7 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
 //             // ⬇️ 从请求中提取 token
 //             if let Some(token_str) = extract_token_from_request(&request, &state) {
 //                 let token = TokenValue::new(token_str);
-//                 
+//
 //                 // ⬇️ 验证 token 是否有效
 //                 if state.manager.is_valid(&token).await {
 //                     // ⬇️ 获取 token 信息
@@ -155,14 +157,14 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
 //                         // ⬇️ 存储到请求扩展中
 //                         request.extensions_mut().insert(token.clone());
 //                         request.extensions_mut().insert(token_info.login_id.clone());
-//                         
+//
 //                         // ⬇️ 设置上下文（供无参数方法使用）
 //                         ctx.token = Some(token.clone());
 //                         ctx.login_id = Some(token_info.login_id);
 //                     }
 //                 }
 //             }
-//             
+//
 //             // ⬇️ 继续处理请求（调用实际的路由处理函数）
 //             inner.call(request).await
 //         })
@@ -189,7 +191,7 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
 //     //    1. 中间件已经验证了 token
 //     //    2. token 和 login_id 已存储到上下文
 //     //    3. 可以安全地使用无参数 StpUtil 方法
-//     
+//
 //     let login_id = StpUtil::get_login_id_as_string()?;
 //     Json(json!({
 //         "name": "Alice",
@@ -217,10 +219,10 @@ pub fn sa_check_login_impl(_attr: TokenStream, item: TokenStream) -> TokenStream
 //     if !StpUtil::is_login_current() {
 //         return Err(StatusCode::UNAUTHORIZED);
 //     }
-//     
+//
 //     // 方式 2: 手动检查
 //     StpUtil::check_login_current()?;
-//     
+//
 //     Ok(Json(json!({"name": "Alice"})))
 // }
 // ```

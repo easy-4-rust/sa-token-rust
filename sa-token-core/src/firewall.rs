@@ -38,18 +38,8 @@ use crate::error::SaTokenError;
 /// Default danger characters that should never appear in a request path.
 /// 对应 Java `SaFirewallCheckHookForPathDangerCharacter.dangerCharacter`。
 pub const DEFAULT_DANGER_CHARACTERS: &[&str] = &[
-    "//",
-    "\\",
-    "%2e", "%2E",
-    "%2f", "%2F",
-    "%5c", "%5C",
-    ";", "%3b", "%3B",
-    "%25",
-    "\0", "%00",
-    "\n", "%0a", "%0A",
-    "\r", "%0d", "%0D",
-    "\u{2028}",
-    "\u{2029}",
+    "//", "\\", "%2e", "%2E", "%2f", "%2F", "%5c", "%5C", ";", "%3b", "%3B", "%25", "\0", "%00",
+    "\n", "%0a", "%0A", "\r", "%0d", "%0D", "\u{2028}", "\u{2029}",
 ];
 
 /// Default allowed HTTP methods.
@@ -144,13 +134,19 @@ impl Default for FirewallStrategy {
         Self {
             white_paths: Vec::new(),
             black_paths: Vec::new(),
-            danger_characters: DEFAULT_DANGER_CHARACTERS.iter().map(|s| s.to_string()).collect(),
+            danger_characters: DEFAULT_DANGER_CHARACTERS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             banned_percentage: false,
             banned_non_printable: true,
             check_host: false,
             allow_hosts: Vec::new(),
             check_method: true,
-            allow_methods: DEFAULT_ALLOW_METHODS.iter().map(|s| s.to_string()).collect(),
+            allow_methods: DEFAULT_ALLOW_METHODS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             not_allow_header_names: Vec::new(),
             not_allow_parameter_names: Vec::new(),
         }
@@ -358,7 +354,10 @@ impl FirewallStrategy {
             return Ok(());
         }
         let method = req.get_method();
-        let allowed = self.allow_methods.iter().any(|m| m.eq_ignore_ascii_case(&method));
+        let allowed = self
+            .allow_methods
+            .iter()
+            .any(|m| m.eq_ignore_ascii_case(&method));
         if !allowed {
             return Err(SaTokenError::FirewallCheck {
                 message: format!("Illegal request method: {method}"),

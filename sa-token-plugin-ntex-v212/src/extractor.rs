@@ -42,4 +42,3 @@ impl LoginIdExtractor {
         LoginIdExtractor(id)
     }
 }
-

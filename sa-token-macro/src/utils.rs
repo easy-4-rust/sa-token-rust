@@ -2,9 +2,9 @@
 //
 //! 宏工具函数
 
-use syn::{ItemFn, punctuated::Punctuated, Token, LitStr};
-use quote::quote;
 use proc_macro2::TokenStream;
+use quote::quote;
+use syn::{ItemFn, LitStr, Token, punctuated::Punctuated};
 
 /// 解析逗号分隔的字符串列表
 #[allow(dead_code)]
@@ -28,7 +28,7 @@ pub fn wrap_fn_with_auth_check(
     let fn_vis = &input.vis;
     let fn_asyncness = &input.sig.asyncness;
     let fn_generics = &input.sig.generics;
-    
+
     let check_code = match check_type {
         "login" => quote! {
             // 检查登录状态
@@ -40,17 +40,17 @@ pub fn wrap_fn_with_auth_check(
                 // 检查权限
                 // 实际验证逻辑在中间件中执行
             }
-        },
+        }
         "role" => {
             let _role_name = check_value.unwrap_or("");
             quote! {
                 // 检查角色
                 // 实际验证逻辑在中间件中执行
             }
-        },
+        }
         _ => quote! {},
     };
-    
+
     quote! {
         #(#fn_attrs)*
         #[allow(unused_variables)]
@@ -69,7 +69,7 @@ pub fn generate_auth_metadata(check_type: &str, value: Option<&str>) -> TokenStr
     } else {
         check_type.to_string()
     };
-    
+
     quote! {
         #[doc(hidden)]
         #[cfg_attr(feature = "sa-token-metadata", sa_token_auth_check = #metadata)]

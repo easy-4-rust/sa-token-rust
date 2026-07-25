@@ -1,7 +1,7 @@
 //! `SaTokenLayer` Fairing: runs shared **`run_auth_flow`**, then sets **`SaTokenContext`** / clears after response.
 //! `SaTokenLayer` Fairing：执行统一的 **`run_auth_flow`**，设置 **`SaTokenContext`**，响应后清理。
-use rocket::{Data, Request, Response};
 use rocket::fairing::{Fairing, Info, Kind};
+use rocket::{Data, Request, Response};
 use sa_token_core::SaTokenContext;
 use sa_token_plugin_rocket_core::SaTokenState;
 
@@ -29,7 +29,8 @@ impl Fairing for SaTokenLayer {
     }
 
     async fn on_request(&self, req: &mut Request<'_>, _: &mut Data<'_>) {
-        let adapter = RocketCapturedRequest::capture(req, self.state.manager.config.token_name.as_str());
+        let adapter =
+            RocketCapturedRequest::capture(req, self.state.manager.config.token_name.as_str());
         let flow =
             sa_token_plugin_rocket_core::run_auth_flow(&adapter, &self.state.manager, None).await;
 

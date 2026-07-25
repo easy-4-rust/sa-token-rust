@@ -60,10 +60,33 @@ impl auth::auth_service_server::AuthService for AuthServiceImpl {
         let req = request.into_inner();
         tracing::info!("Login request: username={}", req.username);
 
+        // 从环境变量读取密码配置（仅用于演示）
+        let get_demo_password = |username: &str| -> Option<String> {
+            match username {
+                "admin" => Some(std::env::var("DEMO_ADMIN_PASSWORD").unwrap_or_else(|_| "admin123".to_string())),
+                "user" => Some(std::env::var("DEMO_USER_PASSWORD").unwrap_or_else(|_| "user123".to_string())),
+                "guest" => Some(std::env::var("DEMO_GUEST_PASSWORD").unwrap_or_else(|_| "guest123".to_string())),
+                _ => None,
+            }
+        };
+
+        // 恒定时间比较（防时序攻击）
+        let ct_eq = |a: &str, b: &str| -> bool {
+            if a.len() != b.len() {
+                return false;
+            }
+            let mut result = 0u8;
+            for (x, y) in a.bytes().zip(b.bytes()) {
+                result |= x ^ y;
+            }
+            result == 0
+        };
+
         let (user_id, valid) = match req.username.as_str() {
-            "admin" if req.password == "admin123" => ("admin", true),
-            "user" if req.password == "user123" => ("user", true),
-            "guest" if req.password == "guest123" => ("guest", true),
+            username @ ("admin" | "user" | "guest") => {
+                let expected = get_demo_password(username).unwrap_or_default();
+                (username, ct_eq(&req.password, &expected))
+            }
             _ => ("", false),
         };
 

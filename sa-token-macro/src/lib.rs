@@ -1,44 +1,44 @@
 // Author: 金书记
 //
 //! # sa-token-macro
-//! 
+//!
 //! sa-token-rust的过程宏
-//! 
+//!
 //! 提供类似Java注解的功能：
 //! - `#[sa_check_login]` - 检查登录
 //! - `#[sa_check_permission("permission")]` - 检查权限
 //! - `#[sa_check_role("role")]` - 检查角色
 //! - `#[sa_ignore]` - 忽略认证（跳过所有认证检查）
-//! 
+//!
 //! ## 使用示例
-//! 
+//!
 //! ```rust,ignore
 //! use sa_token_macro::*;
-//! 
+//!
 //! #[sa_check_login]
 //! async fn user_info() -> impl Responder {
 //!     // 自动验证登录，未登录会返回401
 //!     "User info"
 //! }
-//! 
+//!
 //! #[sa_check_permission("user:delete")]
 //! async fn delete_user(id: u64) -> impl Responder {
 //!     // 自动验证权限，无权限会返回403
 //!     "User deleted"
 //! }
-//! 
+//!
 //! #[sa_check_role("admin")]
 //! async fn admin_panel() -> impl Responder {
 //!     // 自动验证角色，无角色会返回403
 //!     "Admin panel"
 //! }
-//! 
+//!
 //! #[sa_ignore]
 //! async fn public_api() -> impl Responder {
 //!     // 此接口不需要任何认证
 //!     "Public API"
 //! }
-//! 
+//!
 //! // 也可以用在结构体上，表示整个控制器都忽略认证
 //! #[sa_ignore]
 //! struct PublicController;
@@ -51,17 +51,12 @@ mod utils;
 
 // 导出所有宏的实现
 use macros::{
-    check_login::sa_check_login_impl,
-    check_permission::sa_check_permission_impl,
-    check_role::sa_check_role_impl,
+    check_disable::sa_check_disable_impl, check_login::sa_check_login_impl,
+    check_or::sa_check_or_impl, check_permission::sa_check_permission_impl,
     check_permissions_and::sa_check_permissions_and_impl,
-    check_permissions_or::sa_check_permissions_or_impl,
-    check_roles_and::sa_check_roles_and_impl,
-    check_roles_or::sa_check_roles_or_impl,
-    check_safe::sa_check_safe_impl,
-    check_disable::sa_check_disable_impl,
-    check_or::sa_check_or_impl,
-    ignore::sa_ignore_impl,
+    check_permissions_or::sa_check_permissions_or_impl, check_role::sa_check_role_impl,
+    check_roles_and::sa_check_roles_and_impl, check_roles_or::sa_check_roles_or_impl,
+    check_safe::sa_check_safe_impl, ignore::sa_ignore_impl,
 };
 
 /// 检查登录状态的宏

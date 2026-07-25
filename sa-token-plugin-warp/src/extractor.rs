@@ -3,9 +3,9 @@
 // 中文 | English
 // Warp 提取器 | Warp extractors
 
-use sa_token_core::{token::TokenValue, error::messages};
-use warp_03::reject::Reject;
+use sa_token_core::{error::messages, token::TokenValue};
 use serde_json::json;
+use warp_03::reject::Reject;
 
 /// 中文 | English
 /// 认证错误 | Authentication error
@@ -18,20 +18,21 @@ impl AuthError {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// 中文 | English
     /// 获取错误消息 | Get error message
     pub fn message(&self) -> &'static str {
         messages::AUTH_ERROR
     }
-    
+
     /// 中文 | English
     /// 转换为 JSON 字符串 | Convert to JSON string
     pub fn to_json(&self) -> String {
         json!({
             "code": 401,
             "message": self.message()
-        }).to_string()
+        })
+        .to_string()
     }
 }
 
@@ -54,20 +55,21 @@ impl PermissionError {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// 中文 | English
     /// 获取错误消息 | Get error message
     pub fn message(&self) -> &'static str {
         messages::PERMISSION_REQUIRED
     }
-    
+
     /// 中文 | English
     /// 转换为 JSON 字符串 | Convert to JSON string
     pub fn to_json(&self) -> String {
         json!({
             "code": 403,
             "message": self.message()
-        }).to_string()
+        })
+        .to_string()
     }
 }
 
@@ -90,20 +92,21 @@ impl RoleError {
     pub fn new() -> Self {
         Self
     }
-    
+
     /// 中文 | English
     /// 获取错误消息 | Get error message
     pub fn message(&self) -> &'static str {
         messages::ROLE_REQUIRED
     }
-    
+
     /// 中文 | English
     /// 转换为 JSON 字符串 | Convert to JSON string
     pub fn to_json(&self) -> String {
         json!({
             "code": 403,
             "message": self.message()
-        }).to_string()
+        })
+        .to_string()
     }
 }
 
@@ -155,9 +158,14 @@ impl LoginIdExtractor {
 /// 处理 Warp 拒绝 | Handle Warp rejection
 ///
 /// 将 Sa-Token 错误转换为 HTTP 响应 | Convert Sa-Token errors to HTTP responses
-pub async fn handle_rejection(err: warp_03::Rejection) -> Result<impl warp_03::Reply, std::convert::Infallible> {
+pub async fn handle_rejection(
+    err: warp_03::Rejection,
+) -> Result<impl warp_03::Reply, std::convert::Infallible> {
     let (code, message) = if err.is_not_found() {
-        (404, json!({"code": 404, "message": "Not Found"}).to_string())
+        (
+            404,
+            json!({"code": 404, "message": "Not Found"}).to_string(),
+        )
     } else if let Some(auth_error) = err.find::<AuthError>() {
         (401, auth_error.to_json())
     } else if let Some(perm_error) = err.find::<PermissionError>() {
@@ -165,11 +173,17 @@ pub async fn handle_rejection(err: warp_03::Rejection) -> Result<impl warp_03::R
     } else if let Some(role_error) = err.find::<RoleError>() {
         (403, role_error.to_json())
     } else {
-        (500, json!({"code": 500, "message": "Internal Server Error"}).to_string())
+        (
+            500,
+            json!({"code": 500, "message": "Internal Server Error"}).to_string(),
+        )
     };
-    
+
     Ok(warp_03::reply::with_status(
-        warp_03::reply::json(&serde_json::from_str::<serde_json::Value>(&message).unwrap_or_default()),
-        warp_03::http::StatusCode::from_u16(code).unwrap_or(warp_03::http::StatusCode::INTERNAL_SERVER_ERROR)
+        warp_03::reply::json(
+            &serde_json::from_str::<serde_json::Value>(&message).unwrap_or_default(),
+        ),
+        warp_03::http::StatusCode::from_u16(code)
+            .unwrap_or(warp_03::http::StatusCode::INTERNAL_SERVER_ERROR),
     ))
 }

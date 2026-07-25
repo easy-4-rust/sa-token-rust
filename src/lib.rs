@@ -9,10 +9,10 @@ pub use sa_token_plugin_apikey as plugin_apikey;
 pub use sa_token_plugin_jwt as plugin_jwt;
 #[cfg(feature = "plugin-oauth2")]
 pub use sa_token_plugin_oauth2 as plugin_oauth2;
-#[cfg(feature = "plugin-sso")]
-pub use sa_token_plugin_sso as plugin_sso;
 #[cfg(feature = "plugin-observability")]
 pub use sa_token_plugin_observability as plugin_observability;
+#[cfg(feature = "plugin-sso")]
+pub use sa_token_plugin_sso as plugin_sso;
 
 /// Compatibility helper retained from the initial crate scaffold.
 pub fn add(left: u64, right: u64) -> u64 {

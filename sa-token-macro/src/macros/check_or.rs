@@ -6,8 +6,9 @@ use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
+    ItemFn, LitInt, LitStr, Token,
     parse::{Parse, ParseStream},
-    parse_macro_input, ItemFn, LitInt, LitStr, Token,
+    parse_macro_input,
 };
 
 struct OrCheck {
@@ -136,9 +137,13 @@ pub fn sa_check_or_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
             "disable" => {
                 let service = &check.value;
-                let level = check.level.as_ref().map(|l| quote! { #l }).unwrap_or_else(|| {
-                    quote! { sa_token_core::MIN_DISABLE_LEVEL }
-                });
+                let level = check
+                    .level
+                    .as_ref()
+                    .map(|l| quote! { #l })
+                    .unwrap_or_else(|| {
+                        quote! { sa_token_core::MIN_DISABLE_LEVEL }
+                    });
                 quote! {
                     {
                         if let Ok(__login_id) = sa_token_core::StpUtil::get_login_id_as_string().await {

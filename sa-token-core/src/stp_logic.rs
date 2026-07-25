@@ -103,10 +103,7 @@ impl SaLogic {
         self.manager.is_valid(token).await
     }
 
-    pub async fn get_session(
-        &self,
-        login_id: &str,
-    ) -> SaTokenResult<crate::session::SaSession> {
+    pub async fn get_session(&self, login_id: &str) -> SaTokenResult<crate::session::SaSession> {
         let ns = self.manager.account_ns(&self.login_type, login_id);
         self.manager.get_session(&ns).await
     }
@@ -134,11 +131,7 @@ impl SaLogic {
             .await
     }
 
-    pub async fn set_permissions(
-        &self,
-        login_id: &str,
-        perms: Vec<String>,
-    ) -> SaTokenResult<()> {
+    pub async fn set_permissions(&self, login_id: &str, perms: Vec<String>) -> SaTokenResult<()> {
         self.manager
             .set_permissions_with_type(&self.login_type, login_id, perms)
             .await
@@ -262,7 +255,13 @@ mod tests {
         admin.login("10001").await.unwrap();
         user.login("10001").await.unwrap();
 
-        assert_eq!(admin.get_terminal_list("10001", None).await.unwrap().len(), 1);
-        assert_eq!(user.get_terminal_list("10001", None).await.unwrap().len(), 1);
+        assert_eq!(
+            admin.get_terminal_list("10001", None).await.unwrap().len(),
+            1
+        );
+        assert_eq!(
+            user.get_terminal_list("10001", None).await.unwrap().len(),
+            1
+        );
     }
 }

@@ -5,18 +5,18 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, LitStr};
+use syn::{ItemFn, LitStr, parse_macro_input};
 
 /// 检查角色的宏
-/// 
+///
 /// 使用此宏标注的函数会在执行前检查用户是否拥有指定角色
-/// 
+///
 /// # 参数
-/// 
+///
 /// - `role` - 角色名称，如 "admin"、"user"、"vip"
-/// 
+///
 /// # 示例
-/// 
+///
 /// ```rust,ignore
 /// #[sa_check_role("admin")]
 /// async fn admin_panel() -> impl Responder {
@@ -37,17 +37,18 @@ pub fn sa_check_role_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let fn_generics = &input.sig.generics;
     let fn_where_clause = &input.sig.generics.where_clause;
     let role_value = role.value();
-    
+
     if fn_asyncness.is_none() {
         return syn::Error::new_spanned(fn_name, "Macro requires async function")
-            .to_compile_error().into();
+            .to_compile_error()
+            .into();
     }
-    
+
     let check_code = quote! {
         let __login_id = sa_token_core::StpUtil::get_login_id_as_string().await?;
         sa_token_core::StpUtil::check_role(&__login_id, #role_value).await?;
     };
-    
+
     let expanded: TokenStream2 = quote! {
         #(#fn_attrs)*
         #[doc(hidden)]
@@ -56,6 +57,6 @@ pub fn sa_check_role_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             #fn_body
         }
     };
-    
+
     expanded.into()
 }

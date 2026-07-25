@@ -2,7 +2,8 @@
 //! Actix-web **4.x** 绑定：中间件与 Layer 用 **`ActixRequestAdapter`**（借 `HttpRequest`）在 **`run_auth_flow`** 中完成鉴权流水线。
 
 pub use sa_token_plugin_actix_web_core::{
-    error_response, run_auth_flow, AuthFlowResult, PathAuthConfig, SaTokenState, SaTokenStateBuilder,
+    AuthFlowResult, PathAuthConfig, SaTokenState, SaTokenStateBuilder, error_response,
+    run_auth_flow,
 };
 
 pub mod adapter;
@@ -12,13 +13,13 @@ pub mod layer;
 pub mod middleware;
 
 pub use adapter::{ActixRequestAdapter, ActixResponseAdapter};
-pub use ext::{into_data, SaTokenData};
+pub use ext::{SaTokenData, into_data};
 pub use extractor::{LoginIdExtractor, OptionalSaTokenExtractor, SaTokenExtractor};
 pub use layer::SaTokenLayer;
 pub use middleware::{SaCheckLoginMiddleware, SaTokenMiddleware};
 
-pub use sa_token_core::{self, prelude::*};
 pub use sa_token_adapter::{framework::FrameworkAdapter, storage::SaStorage};
+pub use sa_token_core::{self, prelude::*};
 pub use sa_token_macro::*;
 
 #[cfg(feature = "memory")]

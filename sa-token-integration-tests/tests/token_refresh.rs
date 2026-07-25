@@ -5,9 +5,9 @@
 
 mod common;
 
-use std::sync::Arc;
 use sa_token_core::{RefreshTokenManager, SaTokenConfig, SaTokenError, config::TokenStyle};
 use sa_token_storage_memory::MemoryStorage;
+use std::sync::Arc;
 
 fn test_config() -> Arc<SaTokenConfig> {
     Arc::new(SaTokenConfig {
@@ -46,7 +46,9 @@ async fn test_store_and_validate_refresh_token() {
     let storage = Arc::new(MemoryStorage::new());
     let mgr = RefreshTokenManager::new(storage, test_config());
     let rt = mgr.generate("user_42");
-    mgr.store(&rt, "access_token_xyz", "user_42").await.expect("store");
+    mgr.store(&rt, "access_token_xyz", "user_42")
+        .await
+        .expect("store");
     let login_id = mgr.validate(&rt).await.expect("validate");
     assert_eq!(login_id, "user_42");
 }
@@ -60,7 +62,11 @@ async fn test_refresh_access_token_returns_new_token() {
     mgr.store(&rt, old_access, "user_1").await.expect("store");
     let (new_access, login_id) = mgr.refresh_access_token(&rt).await.expect("refresh");
     assert_eq!(login_id, "user_1");
-    assert_ne!(new_access.as_str(), old_access, "refreshed access token should differ");
+    assert_ne!(
+        new_access.as_str(),
+        old_access,
+        "refreshed access token should differ"
+    );
     assert!(!new_access.as_str().is_empty());
 }
 
@@ -96,7 +102,9 @@ async fn test_store_with_extra_data_preserves_extra() {
     let mgr = RefreshTokenManager::new(storage, test_config());
     let rt = mgr.generate("user_1");
     let extra = serde_json::json!({"role": "admin"});
-    mgr.store_with_extra(&rt, "access", "user_1", Some(&extra)).await.expect("store with extra");
+    mgr.store_with_extra(&rt, "access", "user_1", Some(&extra))
+        .await
+        .expect("store with extra");
     let (new_access, login_id) = mgr.refresh_access_token(&rt).await.expect("refresh");
     assert_eq!(login_id, "user_1");
     assert!(!new_access.as_str().is_empty());
@@ -110,7 +118,10 @@ async fn test_validate_nonexistent_refresh_token() {
     let mgr = RefreshTokenManager::new(storage, test_config());
     let result = mgr.validate("nonexistent_refresh_token_12345").await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), SaTokenError::RefreshTokenNotFound));
+    assert!(matches!(
+        result.unwrap_err(),
+        SaTokenError::RefreshTokenNotFound
+    ));
 }
 
 #[tokio::test]
@@ -118,7 +129,9 @@ async fn test_refresh_with_expired_token() {
     let storage = Arc::new(MemoryStorage::new());
     let mgr = RefreshTokenManager::new(storage, short_refresh_config());
     let rt = mgr.generate("user_exp");
-    mgr.store(&rt, "access_token", "user_exp").await.expect("store");
+    mgr.store(&rt, "access_token", "user_exp")
+        .await
+        .expect("store");
     // Wait for refresh token TTL to expire
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     let result = mgr.refresh_access_token(&rt).await;
@@ -129,9 +142,14 @@ async fn test_refresh_with_expired_token() {
 async fn test_refresh_access_token_with_invalid_refresh_token() {
     let storage = Arc::new(MemoryStorage::new());
     let mgr = RefreshTokenManager::new(storage, test_config());
-    let result = mgr.refresh_access_token("no_such_refresh_token_at_all").await;
+    let result = mgr
+        .refresh_access_token("no_such_refresh_token_at_all")
+        .await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), SaTokenError::RefreshTokenNotFound));
+    assert!(matches!(
+        result.unwrap_err(),
+        SaTokenError::RefreshTokenNotFound
+    ));
 }
 
 #[tokio::test]

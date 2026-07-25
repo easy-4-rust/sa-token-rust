@@ -125,15 +125,43 @@ impl IntoResponse for ApiError {
 
 // ==================== 登录接口 ====================
 
+/// 从环境变量读取密码配置（仅用于演示，生产环境应使用数据库）
+fn get_demo_password(username: &str) -> Option<String> {
+    match username {
+        "admin" => Some(std::env::var("DEMO_ADMIN_PASSWORD").unwrap_or_else(|_| "admin123".to_string())),
+        "user" => Some(std::env::var("DEMO_USER_PASSWORD").unwrap_or_else(|_| "user123".to_string())),
+        "guest" => Some(std::env::var("DEMO_GUEST_PASSWORD").unwrap_or_else(|_| "guest123".to_string())),
+        _ => None,
+    }
+}
+
+/// 恒定时间比较（防时序攻击）
+fn ct_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut result = 0u8;
+    for (x, y) in a.bytes().zip(b.bytes()) {
+        result |= x ^ y;
+    }
+    result == 0
+}
+
 pub async fn login(
     State(state): State<AppState>,
     Json(req): Json<LoginRequest>,
 ) -> Result<Json<ApiResponse<LoginResponse>>, ApiError> {
     // 验证用户名密码（实际应该查询数据库）
     let user_id = match req.username.as_str() {
-        "admin" if req.password == "admin123" => "admin",
-        "user" if req.password == "user123" => "user",
-        "guest" if req.password == "guest123" => "guest",
+        username @ ("admin" | "user" | "guest") => {
+            // 从环境变量读取密码，使用恒定时间比较
+            let expected = get_demo_password(username)
+                .ok_or_else(|| ApiError::Unauthorized("用户名或密码错误".to_string()))?;
+            if !ct_eq(&req.password, &expected) {
+                return Err(ApiError::Unauthorized("用户名或密码错误".to_string()));
+            }
+            username
+        }
         _ => {
             return Err(ApiError::Unauthorized("用户名或密码错误".to_string()));
         }

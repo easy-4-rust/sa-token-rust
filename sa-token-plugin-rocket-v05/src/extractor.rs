@@ -2,13 +2,13 @@
 //
 //! Rocket Request Guards (提取器)
 
-use rocket::request::{FromRequest, Request, Outcome};
-use rocket::http::Status;
 use rocket::http::ContentType;
+use rocket::http::Status;
+use rocket::request::{FromRequest, Outcome, Request};
 use rocket::response::{self, Responder};
-use sa_token_core::{token::TokenValue, error::messages, SaTokenContext};
-use std::sync::Arc;
+use sa_token_core::{SaTokenContext, error::messages, token::TokenValue};
 use serde_json::json;
+use std::sync::Arc;
 
 /// 认证错误响应
 #[derive(Debug)]
@@ -38,18 +38,19 @@ impl SaTokenGuard {
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for SaTokenGuard {
     type Error = AuthError;
-    
+
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let token = request.local_cache(|| None::<TokenValue>);
         if let Some(token) = token {
             return Outcome::Success(SaTokenGuard(token.clone()));
         }
-        
+
         let error = json!({
             "code": 401,
             "message": messages::AUTH_ERROR
-        }).to_string();
-        
+        })
+        .to_string();
+
         Outcome::Error((Status::Unauthorized, AuthError { json: error }))
     }
 }
@@ -60,7 +61,7 @@ pub struct OptionalSaTokenGuard(pub Option<TokenValue>);
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for OptionalSaTokenGuard {
     type Error = ();
-    
+
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let token = request.local_cache(|| None::<TokenValue>).clone();
         Outcome::Success(OptionalSaTokenGuard(token))
@@ -94,18 +95,19 @@ impl LoginIdGuard {
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for LoginIdGuard {
     type Error = AuthError;
-    
+
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let login_id = request.local_cache(|| None::<String>);
         if let Some(login_id) = login_id {
             return Outcome::Success(LoginIdGuard(login_id.clone()));
         }
-        
+
         let error = json!({
             "code": 401,
             "message": messages::AUTH_ERROR
-        }).to_string();
-        
+        })
+        .to_string();
+
         Outcome::Error((Status::Unauthorized, AuthError { json: error }))
     }
 }

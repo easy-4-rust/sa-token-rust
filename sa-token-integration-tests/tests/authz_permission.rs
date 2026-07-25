@@ -90,7 +90,9 @@ async fn test_add_individual_permission() {
 #[serial]
 async fn test_remove_permission() {
     setup_user_with_perms("user_c", vec!["user:list", "user:add"]).await;
-    StpUtil::remove_permission("user_c", "user:list").await.unwrap();
+    StpUtil::remove_permission("user_c", "user:list")
+        .await
+        .unwrap();
     assert!(!StpUtil::has_permission("user_c", "user:list").await);
     assert!(StpUtil::has_permission("user_c", "user:add").await);
 }

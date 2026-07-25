@@ -206,10 +206,10 @@
 //!    - 将 nonce 与认证结合使用，而不是替代认证
 //! ```
 
-use std::sync::Arc;
+use crate::error::{SaTokenError, SaTokenResult};
 use chrono::{DateTime, Utc};
 use sa_token_adapter::storage::SaStorage;
-use crate::error::{SaTokenError, SaTokenResult};
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// Nonce Manager | Nonce 管理器
@@ -260,7 +260,11 @@ impl NonceManager {
     /// // Returns: "nonce_1701234567890_a1b2c3d4e5f6..."
     /// ```
     pub fn generate(&self) -> String {
-        format!("nonce_{}_{}", Utc::now().timestamp_millis(), Uuid::new_v4().simple())
+        format!(
+            "nonce_{}_{}",
+            Utc::now().timestamp_millis(),
+            Uuid::new_v4().simple()
+        )
     }
 
     /// Store and mark nonce as used | 存储并标记 nonce 为已使用
@@ -293,11 +297,13 @@ impl NonceManager {
         let value = serde_json::json!({
             "login_id": login_id,
             "created_at": Utc::now().to_rfc3339(),
-        }).to_string();
+        })
+        .to_string();
 
         // Set TTL to automatically expire the nonce
         let ttl = Some(std::time::Duration::from_secs(self.timeout as u64));
-        self.storage.set(&key, &value, ttl)
+        self.storage
+            .set(&key, &value, ttl)
             .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
@@ -323,7 +329,7 @@ impl NonceManager {
     /// ```text
     /// Nonce NOT in storage → Valid (can be used)
     /// Nonce IN storage     → Invalid (already used)
-    /// 
+    ///
     /// Nonce 不在存储中 → 有效（可以使用）
     /// Nonce 在存储中   → 无效（已使用）
     /// ```
@@ -340,10 +346,12 @@ impl NonceManager {
     /// ```
     pub async fn validate(&self, nonce: &str) -> SaTokenResult<bool> {
         let key = format!("sa:nonce:{}", nonce);
-        
+
         // Check if nonce exists in storage
         // 检查 nonce 是否存在于存储中
-        let exists = self.storage.get(&key)
+        let exists = self
+            .storage
+            .get(&key)
             .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?
             .is_some();
@@ -415,7 +423,7 @@ impl NonceManager {
         // 2. Consume: store nonce to mark as used
         // 消费：存储 nonce 以标记为已使用
         self.store(nonce, login_id).await?;
-        
+
         Ok(())
     }
 
@@ -475,7 +483,8 @@ impl NonceManager {
 
         // Extract and parse timestamp
         // 提取并解析时间戳
-        let timestamp_ms = parts[1].parse::<i64>()
+        let timestamp_ms = parts[1]
+            .parse::<i64>()
             .map_err(|_| SaTokenError::InvalidNonceTimestamp)?;
 
         let nonce_time = DateTime::from_timestamp_millis(timestamp_ms)
@@ -522,7 +531,7 @@ impl NonceManager {
     pub async fn cleanup_expired(&self) -> SaTokenResult<()> {
         // Storage with TTL support will auto-cleanup
         // 支持 TTL 的存储会自动清理
-        // 
+        //
         // This is a no-op for Redis/Memory storage
         // 对于 Redis/Memory 存储，这是一个空操作
         Ok(())
@@ -571,7 +580,10 @@ mod tests {
         let nonce = nonce_mgr.generate();
 
         // First use should succeed
-        nonce_mgr.validate_and_consume(&nonce, "user_123").await.unwrap();
+        nonce_mgr
+            .validate_and_consume(&nonce, "user_123")
+            .await
+            .unwrap();
 
         // Second use should fail
         let result = nonce_mgr.validate_and_consume(&nonce, "user_123").await;
@@ -592,4 +604,3 @@ mod tests {
         assert!(nonce_mgr.check_timestamp(&nonce, 1).unwrap());
     }
 }
-

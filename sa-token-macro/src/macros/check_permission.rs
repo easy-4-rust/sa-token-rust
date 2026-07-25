@@ -1,58 +1,58 @@
 // Author: 金书记
 //
 //! 权限检查宏
-//! 
+//!
 //! 提供细粒度的权限控制，支持通配符和精确匹配
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, ItemFn, LitStr, Error};
+use syn::{Error, ItemFn, LitStr, parse_macro_input};
 
 /// 检查权限的宏
-/// 
+///
 /// 使用此宏标注的函数会在执行前检查用户是否拥有指定权限。
-/// 
+///
 /// # 参数
-/// 
+///
 /// - `permission` - 权限标识符，支持以下格式：
 ///   - 精确匹配: `"user:delete"`
 ///   - 通配符: `"admin:*"` (表示 admin 模块的所有权限)
 ///   - 全局通配符: `"*"` (表示所有权限)
-/// 
+///
 /// # 工作原理
-/// 
+///
 /// 1. 编译时：验证权限格式并添加元数据标记
 /// 2. 运行时：中间件读取权限标识并验证
 /// 3. 验证失败：返回 403 Forbidden
-/// 
+///
 /// # 示例
-/// 
+///
 /// ```rust,ignore
 /// use axum::Json;
 /// use sa_token_macro::sa_check_permission;
-/// 
+///
 /// // 检查单个权限
 /// #[sa_check_permission("user:delete")]
 /// async fn delete_user(id: u64) -> &'static str {
 ///     "User deleted"
 /// }
-/// 
+///
 /// // 使用通配符
 /// #[sa_check_permission("admin:*")]
 /// async fn admin_panel() -> &'static str {
 ///     "Admin panel"
 /// }
-/// 
+///
 /// // 全局权限
 /// #[sa_check_permission("*")]
 /// async fn super_admin() -> &'static str {
 ///     "Super admin area"
 /// }
 /// ```
-/// 
+///
 /// # 权限命名规范
-/// 
+///
 /// 推荐使用 `模块:操作` 的格式：
 /// - `user:list` - 查看用户列表
 /// - `user:create` - 创建用户
@@ -62,15 +62,15 @@ use syn::{parse_macro_input, ItemFn, LitStr, Error};
 pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
     let permission = parse_macro_input!(attr as LitStr);
     let perm_value = permission.value();
-    
+
     // 编译时验证：权限标识符不能为空
     if perm_value.trim().is_empty() {
         let err = Error::new_spanned(&permission, "Permission identifier cannot be empty");
         return TokenStream::from(err.to_compile_error());
     }
-    
+
     let input = parse_macro_input!(item as ItemFn);
-    
+
     let fn_name = &input.sig.ident;
     let fn_inputs = &input.sig.inputs;
     let fn_output = &input.sig.output;
@@ -80,17 +80,18 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
     let fn_asyncness = &input.sig.asyncness;
     let fn_generics = &input.sig.generics;
     let fn_where_clause = &input.sig.generics.where_clause;
-    
+
     if fn_asyncness.is_none() {
         return syn::Error::new_spanned(fn_name, "Macro requires async function")
-            .to_compile_error().into();
+            .to_compile_error()
+            .into();
     }
-    
+
     let check_code = quote! {
         let __login_id = sa_token_core::StpUtil::get_login_id_as_string().await?;
         sa_token_core::StpUtil::check_permission(&__login_id, #perm_value).await?;
     };
-    
+
     let expanded: TokenStream2 = quote! {
         #(#fn_attrs)*
         #[doc(hidden)]
@@ -99,7 +100,7 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
             #fn_body
         }
     };
-    
+
     expanded.into()
 }
 
@@ -156,7 +157,7 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
 //         "user:update".to_string(),
 //         "user:delete".to_string(),  // ⬅️ 这个用户有删除权限
 //     ]).await?;
-//     
+//
 //     // 为管理员设置权限（使用通配符）
 //     StpUtil::set_permissions("admin_001", vec![
 //         "user:*".to_string(),    // ⬅️ user 模块的所有权限
@@ -195,7 +196,7 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
 //                     }
 //                 }
 //             }
-//             
+//
 //             // ⬇️ 继续处理请求
 //             inner.call(request).await
 //         })
@@ -213,12 +214,12 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
 //     // ⬇️ 手动检查权限
 //     let login_id = StpUtil::get_login_id_as_string()
 //         .map_err(|_| StatusCode::UNAUTHORIZED)?;
-//     
+//
 //     // ⬇️ 验证是否有权限
 //     if !StpUtil::has_permission(&login_id, "user:delete").await {
 //         return Err(StatusCode::FORBIDDEN);
 //     }
-//     
+//
 //     // ⬇️ 执行业务逻辑
 //     // ... 删除用户代码 ...
 //     Ok("User deleted")
@@ -230,10 +231,10 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
 // #[sa_check_permission("user:delete")]
 // async fn delete_user(id: u64) -> Result<&'static str, StatusCode> {
 //     let login_id = StpUtil::get_login_id_as_string()?;
-//     
+//
 //     // ⬇️ 检查权限，失败会抛出异常
 //     StpUtil::check_permission(&login_id, "user:delete").await?;
-//     
+//
 //     Ok("User deleted")
 // }
 // ```
@@ -255,13 +256,13 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
 // pub async fn has_permission(login_id: impl LoginId, permission: &str) -> bool {
 //     let manager = Self::get_manager();
 //     let map = manager.user_permissions.read().await;
-//     
+//
 //     if let Some(permissions) = map.get(&login_id.to_login_id()) {
 //         // ⬇️ 1. 精确匹配
 //         if permissions.contains(&permission.to_string()) {
 //             return true;
 //         }
-//         
+//
 //         // ⬇️ 2. 通配符匹配
 //         for perm in permissions {
 //             if perm.ends_with(":*") {
@@ -272,7 +273,7 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
 //             }
 //         }
 //     }
-//     
+//
 //     false
 // }
 // ```
@@ -319,19 +320,19 @@ pub fn sa_check_permission_impl(attr: TokenStream, item: TokenStream) -> TokenSt
 // #[sa_check_permission("order:refund")]
 // async fn refund_order(order_id: u64, amount: f64) -> Result<String, StatusCode> {
 //     let login_id = StpUtil::get_login_id_as_string()?;
-//     
+//
 //     // ⬇️ 动态权限：金额超过 1000 需要额外的高级权限
 //     let required_permission = if amount > 1000.0 {
 //         "order:refund:advanced"
 //     } else {
 //         "order:refund"
 //     };
-//     
+//
 //     if !StpUtil::has_permission(&login_id, required_permission).await {
 //         // ⬇️ 自定义错误响应
 //         return Err(StatusCode::FORBIDDEN);
 //     }
-//     
+//
 //     Ok(format!("Refunded ${}", amount))
 // }
 // ```

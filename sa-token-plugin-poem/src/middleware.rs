@@ -2,15 +2,14 @@
 //
 //! Poem 中间件实现
 
+use crate::SaTokenState;
+use crate::adapter::PoemRequestAdapter;
 use poem_03::{
-    Endpoint, IntoResponse, Middleware, Request, Response, Result as PoemResult,
-    http::StatusCode,
+    Endpoint, IntoResponse, Middleware, Request, Response, Result as PoemResult, http::StatusCode,
 };
 use sa_token_core::error::messages;
 use sa_token_core::router::run_auth_flow;
 use serde_json::json;
-use crate::SaTokenState;
-use crate::adapter::PoemRequestAdapter;
 
 /// sa-token 基础中间件 - 提取并验证 token
 pub struct SaTokenMiddleware {
@@ -25,7 +24,7 @@ impl SaTokenMiddleware {
 
 impl<E: Endpoint> Middleware<E> for SaTokenMiddleware {
     type Output = SaTokenMiddlewareImpl<E>;
-    
+
     fn transform(&self, ep: E) -> Self::Output {
         SaTokenMiddlewareImpl {
             ep,
@@ -41,7 +40,7 @@ pub struct SaTokenMiddlewareImpl<E> {
 
 impl<E: Endpoint> Endpoint for SaTokenMiddlewareImpl<E> {
     type Output = Response;
-    
+
     async fn call(&self, mut req: Request) -> PoemResult<Self::Output> {
         let adapter = PoemRequestAdapter::new(&req);
         let flow = run_auth_flow(&adapter, &self.state.manager, None).await;
@@ -75,7 +74,7 @@ impl SaCheckLoginMiddleware {
 
 impl<E: Endpoint> Middleware<E> for SaCheckLoginMiddleware {
     type Output = SaCheckLoginMiddlewareImpl<E>;
-    
+
     fn transform(&self, ep: E) -> Self::Output {
         SaCheckLoginMiddlewareImpl {
             ep,
@@ -91,7 +90,7 @@ pub struct SaCheckLoginMiddlewareImpl<E> {
 
 impl<E: Endpoint> Endpoint for SaCheckLoginMiddlewareImpl<E> {
     type Output = Response;
-    
+
     async fn call(&self, mut req: Request) -> PoemResult<Self::Output> {
         let adapter = PoemRequestAdapter::new(&req);
         let flow = run_auth_flow(&adapter, &self.state.manager, None).await;
@@ -100,10 +99,13 @@ impl<E: Endpoint> Endpoint for SaCheckLoginMiddlewareImpl<E> {
             return Ok(Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
                 .header("Content-Type", "application/json")
-                .body(json!({
-                    "code": 401,
-                    "message": messages::AUTH_ERROR
-                }).to_string()));
+                .body(
+                    json!({
+                        "code": 401,
+                        "message": messages::AUTH_ERROR
+                    })
+                    .to_string(),
+                ));
         }
 
         if let Some(t) = &flow.token {

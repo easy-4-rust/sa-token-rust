@@ -77,6 +77,16 @@ impl SaTokenManager {
         &self.event_bus
     }
 
+    /// 获取存储实例的引用
+    pub fn storage(&self) -> &Arc<dyn SaStorage> {
+        &self.storage
+    }
+
+    /// 获取存储实例的 Arc 引用（与 storage() 相同，语义更明确）
+    pub fn storage_arc(&self) -> &Arc<dyn SaStorage> {
+        &self.storage
+    }
+
     /// 登录：为指定账号创建 token
     pub async fn login(&self, login_id: impl Into<String>) -> SaTokenResult<TokenValue> {
         self.login_with_options(login_id, None, None, None, None, None)

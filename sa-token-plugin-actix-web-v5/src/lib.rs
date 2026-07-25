@@ -8,4 +8,5 @@
 pub use sa_token_plugin_actix_web_core::*;
 
 #[doc(hidden)]
-pub const __V5_NOT_IMPLEMENTED__: &str = "actix-web 5.x binding is not implemented; use feature v4.";
+pub const __V5_NOT_IMPLEMENTED__: &str =
+    "actix-web 5.x binding is not implemented; use feature v4.";

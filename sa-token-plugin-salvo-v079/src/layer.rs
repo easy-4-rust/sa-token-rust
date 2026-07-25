@@ -1,8 +1,8 @@
 //! Salvo **`Handler`** implementing the shared auth pipeline / 实现统一鉴权流水线的 Salvo **`Handler`**。
-use salvo::{Depot, FlowCtrl, Handler, Request, Response};
-use salvo::http::StatusCode;
 use sa_token_core::router::PathAuthConfig;
-use sa_token_plugin_salvo_core::{run_auth_flow, SaTokenState};
+use sa_token_plugin_salvo_core::{SaTokenState, run_auth_flow};
+use salvo::http::StatusCode;
+use salvo::{Depot, FlowCtrl, Handler, Request, Response};
 
 use crate::adapter::SalvoCapturedRequest;
 
@@ -49,12 +49,7 @@ impl Handler for SaTokenLayer {
         // 在 `.await` 前快照：避免跨 `run_auth_flow` 仍借用 `req`。
         let adapter =
             SalvoCapturedRequest::capture(req, self.state.manager.config.token_name.as_str());
-        let flow = run_auth_flow(
-            &adapter,
-            &self.state.manager,
-            self.path_config.as_ref(),
-        )
-        .await;
+        let flow = run_auth_flow(&adapter, &self.state.manager, self.path_config.as_ref()).await;
 
         if flow.should_reject() {
             res.status_code(StatusCode::UNAUTHORIZED);

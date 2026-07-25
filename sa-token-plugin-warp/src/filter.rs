@@ -2,8 +2,8 @@
 //
 //! Warp Filter (中间件)
 
-use warp_03::{http::HeaderMap, Filter, Rejection};
 use warp_03 as warp;
+use warp_03::{Filter, Rejection, http::HeaderMap};
 
 use crate::SaTokenState;
 use sa_token_adapter::utils::{extract_bearer_or_value, parse_cookies};
@@ -57,32 +57,37 @@ async fn extract_and_validate_token(
     let mut token_str: Option<String> = None;
 
     if let Some(header_val) = headers.get(token_name)
-        && let Ok(s) = header_val.to_str() {
-            let v = extract_bearer_or_value(s);
-            if !v.is_empty() {
-                token_str = Some(v);
-            }
+        && let Ok(s) = header_val.to_str()
+    {
+        let v = extract_bearer_or_value(s);
+        if !v.is_empty() {
+            token_str = Some(v);
         }
+    }
 
-    if token_str.is_none() && !token_name.eq_ignore_ascii_case("authorization")
+    if token_str.is_none()
+        && !token_name.eq_ignore_ascii_case("authorization")
         && let Some(header_val) = headers
             .get("Authorization")
             .or_else(|| headers.get("authorization"))
-            && let Ok(s) = header_val.to_str() {
-                let v = extract_bearer_or_value(s);
-                if !v.is_empty() {
-                    token_str = Some(v);
-                }
-            }
+        && let Ok(s) = header_val.to_str()
+    {
+        let v = extract_bearer_or_value(s);
+        if !v.is_empty() {
+            token_str = Some(v);
+        }
+    }
 
     if token_str.is_none()
-        && let Some(cookie_header) = headers.get("cookie").and_then(|c| c.to_str().ok()) {
-            let cookies = parse_cookies(cookie_header);
-            if let Some(t) = cookies.get(token_name)
-                && !t.is_empty() {
-                    token_str = Some(t.clone());
-                }
+        && let Some(cookie_header) = headers.get("cookie").and_then(|c| c.to_str().ok())
+    {
+        let cookies = parse_cookies(cookie_header);
+        if let Some(t) = cookies.get(token_name)
+            && !t.is_empty()
+        {
+            token_str = Some(t.clone());
         }
+    }
 
     if token_str.is_none() {
         token_str = query
@@ -95,12 +100,13 @@ async fn extract_and_validate_token(
         let token = TokenValue::new(token_str);
 
         if state.manager.is_valid(&token).await
-            && let Ok(token_info) = state.manager.get_token_info(&token).await {
-                return Ok(TokenData {
-                    token: Some(token),
-                    login_id: Some(token_info.login_id),
-                });
-            }
+            && let Ok(token_info) = state.manager.get_token_info(&token).await
+        {
+            return Ok(TokenData {
+                token: Some(token),
+                login_id: Some(token_info.login_id),
+            });
+        }
     }
 
     Ok(TokenData {

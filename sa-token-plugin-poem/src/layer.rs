@@ -8,8 +8,8 @@ use poem_03::{Endpoint, Middleware, Request, Result};
 use sa_token_core::router::PathAuthConfig;
 use sa_token_core::router::run_auth_flow;
 
-use crate::adapter::PoemRequestAdapter;
 use crate::SaTokenState;
+use crate::adapter::PoemRequestAdapter;
 
 /// Sa-Token layer for Poem with optional path-based authentication
 pub struct SaTokenLayer {

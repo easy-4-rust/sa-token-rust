@@ -3,13 +3,13 @@
 // 中文 | English
 // Tide 认证中间件 | Tide authentication middleware
 
-use tide_017::{Middleware, Request, Response, Next, StatusCode};
-use sa_token_core::{StpUtil, error::messages};
-use sa_token_core::router::run_auth_flow;
-use async_trait::async_trait;
-use crate::state::SaTokenState;
 use crate::layer::TideRequestAdapter;
+use crate::state::SaTokenState;
+use async_trait::async_trait;
+use sa_token_core::router::run_auth_flow;
+use sa_token_core::{StpUtil, error::messages};
 use serde_json::json;
+use tide_017::{Middleware, Next, Request, Response, StatusCode};
 
 /// 中文 | English
 /// 认证中间件 - 验证用户登录状态 | Authentication middleware - verify user login status
@@ -35,7 +35,7 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for AuthMiddleware 
             .header("Authorization")
             .and_then(|v| v.as_str().strip_prefix("Bearer "))
             .map(|s| s.to_string());
-        
+
         if let Some(token_str) = token {
             // 中文 | English
             // 验证 token 是否有效 | Verify if token is valid
@@ -50,7 +50,7 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for AuthMiddleware 
                 }
             }
         }
-        
+
         // 中文 | English
         // Token 无效，返回 401 | Token invalid, return 401
         let mut res = Response::new(StatusCode::Unauthorized);
@@ -95,7 +95,7 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for PermissionMiddl
                 return Ok(next.run(req).await);
             }
         }
-        
+
         // 中文 | English
         // 无权限，返回 403 | No permission, return 403
         let mut res = Response::new(StatusCode::Forbidden);
@@ -130,10 +130,13 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for SaCheckLoginMid
 
         if flow.token.is_none() || flow.login_id.is_none() {
             let mut res = Response::new(StatusCode::Unauthorized);
-            res.set_body(json!({
-                "code": 401,
-                "message": messages::AUTH_ERROR
-            }).to_string());
+            res.set_body(
+                json!({
+                    "code": 401,
+                    "message": messages::AUTH_ERROR
+                })
+                .to_string(),
+            );
             res.set_content_type("application/json");
             return Ok(res);
         }
@@ -163,7 +166,10 @@ impl SaCheckPermissionMiddleware {
     /// 中文 | English
     /// 创建新的权限检查中间件 | Create new permission check middleware
     pub fn new(state: SaTokenState, permission: impl Into<String>) -> Self {
-        Self { state, permission: permission.into() }
+        Self {
+            state,
+            permission: permission.into(),
+        }
     }
 }
 
@@ -175,20 +181,26 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for SaCheckPermissi
 
         let Some(login_id) = flow.login_id.clone() else {
             let mut res = Response::new(StatusCode::Forbidden);
-            res.set_body(json!({
-                "code": 403,
-                "message": messages::PERMISSION_REQUIRED
-            }).to_string());
+            res.set_body(
+                json!({
+                    "code": 403,
+                    "message": messages::PERMISSION_REQUIRED
+                })
+                .to_string(),
+            );
             res.set_content_type("application/json");
             return Ok(res);
         };
 
         if !StpUtil::has_permission(&login_id, &self.permission).await {
             let mut res = Response::new(StatusCode::Forbidden);
-            res.set_body(json!({
-                "code": 403,
-                "message": messages::PERMISSION_REQUIRED
-            }).to_string());
+            res.set_body(
+                json!({
+                    "code": 403,
+                    "message": messages::PERMISSION_REQUIRED
+                })
+                .to_string(),
+            );
             res.set_content_type("application/json");
             return Ok(res);
         }
@@ -216,7 +228,10 @@ impl SaCheckRoleMiddleware {
     /// 中文 | English
     /// 创建新的角色检查中间件 | Create new role check middleware
     pub fn new(state: SaTokenState, role: impl Into<String>) -> Self {
-        Self { state, role: role.into() }
+        Self {
+            state,
+            role: role.into(),
+        }
     }
 }
 
@@ -228,20 +243,26 @@ impl<State: Clone + Send + Sync + 'static> Middleware<State> for SaCheckRoleMidd
 
         let Some(login_id) = flow.login_id.clone() else {
             let mut res = Response::new(StatusCode::Forbidden);
-            res.set_body(json!({
-                "code": 403,
-                "message": messages::ROLE_REQUIRED
-            }).to_string());
+            res.set_body(
+                json!({
+                    "code": 403,
+                    "message": messages::ROLE_REQUIRED
+                })
+                .to_string(),
+            );
             res.set_content_type("application/json");
             return Ok(res);
         };
 
         if !StpUtil::has_role(&login_id, &self.role).await {
             let mut res = Response::new(StatusCode::Forbidden);
-            res.set_body(json!({
-                "code": 403,
-                "message": messages::ROLE_REQUIRED
-            }).to_string());
+            res.set_body(
+                json!({
+                    "code": 403,
+                    "message": messages::ROLE_REQUIRED
+                })
+                .to_string(),
+            );
             res.set_content_type("application/json");
             return Ok(res);
         }

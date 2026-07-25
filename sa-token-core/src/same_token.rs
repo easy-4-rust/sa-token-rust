@@ -37,7 +37,11 @@ pub struct SameTokenTemplate {
 
 impl SameTokenTemplate {
     /// Create a new SameTokenTemplate.
-    pub fn new(storage: Arc<dyn SaStorage>, key_prefix: impl Into<String>, timeout_seconds: i64) -> Self {
+    pub fn new(
+        storage: Arc<dyn SaStorage>,
+        key_prefix: impl Into<String>,
+        timeout_seconds: i64,
+    ) -> Self {
         Self {
             storage,
             key_prefix: key_prefix.into(),
@@ -306,6 +310,9 @@ mod tests {
         let tpl_b = TempTokenTemplate::with_namespace(storage, "sa:", "ns-b");
         let token = tpl_a.create_token("value-a", 3600).await.unwrap();
         assert!(tpl_b.parse_token(&token).await.unwrap().is_none());
-        assert_eq!(tpl_a.parse_token(&token).await.unwrap().as_deref(), Some("value-a"));
+        assert_eq!(
+            tpl_a.parse_token(&token).await.unwrap().as_deref(),
+            Some("value-a")
+        );
     }
 }

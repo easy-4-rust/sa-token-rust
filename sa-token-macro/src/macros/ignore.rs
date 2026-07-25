@@ -5,45 +5,45 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse_macro_input, Item};
+use syn::{Item, parse_macro_input};
 
 /// 忽略认证检查的宏
-/// 
+///
 /// 使用此宏标注的函数、结构体或impl块将跳过所有sa-token的认证检查，
 /// 包括登录验证、权限验证、角色验证和路由拦截器。
-/// 
+///
 /// 这对于公开API、健康检查接口等不需要认证的端点非常有用。
-/// 
+///
 /// # 可以应用于
-/// 
+///
 /// - 函数：单个路由处理函数忽略认证
 /// - 结构体：整个控制器的所有方法都忽略认证
 /// - impl块：impl块中的所有方法都忽略认证
-/// 
+///
 /// # 示例
-/// 
+///
 /// ## 在函数上使用
-/// 
+///
 /// ```rust,ignore
 /// #[sa_ignore]
 /// async fn public_api() -> impl Responder {
 ///     // 此接口不需要任何认证
 ///     "Public API"
 /// }
-/// 
+///
 /// #[sa_ignore]
 /// async fn health_check() -> impl Responder {
 ///     // 健康检查接口，无需认证
 ///     "OK"
 /// }
 /// ```
-/// 
+///
 /// ## 在结构体上使用
-/// 
+///
 /// ```rust,ignore
 /// #[sa_ignore]
 /// struct PublicController;
-/// 
+///
 /// impl PublicController {
 ///     // 此控制器的所有方法都不需要认证
 ///     async fn home() -> impl Responder {
@@ -55,12 +55,12 @@ use syn::{parse_macro_input, Item};
 ///     }
 /// }
 /// ```
-/// 
+///
 /// ## 在impl块上使用
-/// 
+///
 /// ```rust,ignore
 /// struct ApiController;
-/// 
+///
 /// #[sa_ignore]
 /// impl ApiController {
 ///     // 这个impl块中的所有方法都忽略认证
@@ -69,12 +69,12 @@ use syn::{parse_macro_input, Item};
 ///     }
 /// }
 /// ```
-/// 
+///
 /// # 优先级
-/// 
+///
 /// `#[sa_ignore]` 的优先级最高，即使同时使用了 `#[sa_check_login]` 等其他认证宏，
 /// 也会被 `#[sa_ignore]` 覆盖，不进行任何认证检查。
-/// 
+///
 /// ```rust,ignore
 /// // 警告：sa_ignore 会覆盖 sa_check_login
 /// #[sa_ignore]
@@ -86,7 +86,7 @@ use syn::{parse_macro_input, Item};
 /// ```
 pub fn sa_ignore_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as Item);
-    
+
     let expanded: TokenStream2 = match input {
         Item::Fn(item_fn) => {
             // 为函数添加忽略标记
@@ -116,6 +116,6 @@ pub fn sa_ignore_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
             quote! { #input }
         }
     };
-    
+
     expanded.into()
 }

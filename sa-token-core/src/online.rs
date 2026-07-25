@@ -3,12 +3,12 @@
 //! # Code Flow Logic | 代码流程逻辑
 //!
 //! ## English
-//! 
+//!
 //! ### Overview
 //! This module provides comprehensive online user management and real-time message
 //! push capabilities. It tracks user online status, manages connections, and
 //! delivers messages to users in real-time.
-//! 
+//!
 //! ### Online User Management Flow
 //! ```text
 //! 1. User Connects (e.g., WebSocket, SSE)
@@ -27,7 +27,7 @@
 //!    ├─→ Remove from online_users
 //!    └─→ Clean up if no more sessions
 //! ```
-//! 
+//!
 //! ### Message Push Flow
 //! ```text
 //! 1. Create PushMessage
@@ -49,7 +49,7 @@
 //!    ├─→ WebSocketPusher: Send via WS
 //!    └─→ Custom: Your implementation
 //! ```
-//! 
+//!
 //! ### Kick-Out Flow
 //! ```text
 //! 1. Trigger kick_out_notify(login_id, reason)
@@ -63,7 +63,7 @@
 //! 4. Mark user offline
 //!    └─→ mark_offline_all(login_id)
 //! ```
-//! 
+//!
 //! ### Message Types
 //! - Text: Plain text messages
 //! - Binary: Binary data
@@ -72,11 +72,11 @@
 //! - Custom: User-defined types
 //!
 //! ## 中文
-//! 
+//!
 //! ### 概述
 //! 本模块提供全面的在线用户管理和实时消息推送功能。
 //! 它跟踪用户在线状态、管理连接，并实时向用户推送消息。
-//! 
+//!
 //! ### 在线用户管理流程
 //! ```text
 //! 1. 用户连接（如 WebSocket、SSE）
@@ -95,7 +95,7 @@
 //!    ├─→ 从 online_users 中移除
 //!    └─→ 如果没有更多会话则清理
 //! ```
-//! 
+//!
 //! ### 消息推送流程
 //! ```text
 //! 1. 创建 PushMessage
@@ -117,7 +117,7 @@
 //!    ├─→ WebSocketPusher: 通过 WS 发送
 //!    └─→ Custom: 你的实现
 //! ```
-//! 
+//!
 //! ### 强制下线流程
 //! ```text
 //! 1. 触发 kick_out_notify(login_id, reason)
@@ -131,7 +131,7 @@
 //! 4. 标记用户离线
 //!    └─→ mark_offline_all(login_id)
 //! ```
-//! 
+//!
 //! ### 消息类型
 //! - Text: 纯文本消息
 //! - Binary: 二进制数据
@@ -141,10 +141,10 @@
 
 use crate::error::SaTokenError;
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 
 /// Online user information
 /// 在线用户信息
@@ -155,19 +155,19 @@ use chrono::{DateTime, Utc};
 pub struct OnlineUser {
     /// User login ID | 用户登录 ID
     pub login_id: String,
-    
+
     /// Authentication token | 认证 Token
     pub token: String,
-    
+
     /// Device identifier (e.g., "web", "mobile", "ios", "android") | 设备标识
     pub device: String,
-    
+
     /// Connection establishment time | 连接建立时间
     pub connect_time: DateTime<Utc>,
-    
+
     /// Last activity timestamp | 最后活跃时间戳
     pub last_activity: DateTime<Utc>,
-    
+
     /// Custom metadata for this connection | 该连接的自定义元数据
     pub metadata: HashMap<String, String>,
 }
@@ -181,16 +181,16 @@ pub struct OnlineUser {
 pub struct PushMessage {
     /// Unique message identifier | 唯一消息标识符
     pub message_id: String,
-    
+
     /// Message content | 消息内容
     pub content: String,
-    
+
     /// Message type | 消息类型
     pub message_type: MessageType,
-    
+
     /// Message timestamp | 消息时间戳
     pub timestamp: DateTime<Utc>,
-    
+
     /// Additional metadata | 额外元数据
     pub metadata: HashMap<String, String>,
 }
@@ -204,16 +204,16 @@ pub struct PushMessage {
 pub enum MessageType {
     /// Plain text message | 纯文本消息
     Text,
-    
+
     /// Binary data message | 二进制数据消息
     Binary,
-    
+
     /// Force logout notification | 强制登出通知
     KickOut,
-    
+
     /// System notification | 系统通知
     Notification,
-    
+
     /// Custom message type | 自定义消息类型
     Custom(String),
 }
@@ -245,7 +245,7 @@ pub struct OnlineManager {
     /// Supports multiple devices per user
     /// 支持每个用户多设备
     online_users: Arc<RwLock<HashMap<String, Vec<OnlineUser>>>>,
-    
+
     /// Registered message pushers | 已注册的消息推送器
     pushers: Arc<RwLock<Vec<Arc<dyn MessagePusher>>>>,
 }
@@ -301,7 +301,8 @@ impl OnlineManager {
     /// ```
     pub async fn mark_online(&self, user: OnlineUser) {
         let mut users = self.online_users.write().await;
-        users.entry(user.login_id.clone())
+        users
+            .entry(user.login_id.clone())
             .or_insert_with(Vec::new)
             .push(user);
     }
@@ -479,7 +480,11 @@ impl OnlineManager {
     /// let users = vec!["user1".to_string(), "user2".to_string()];
     /// manager.push_to_users(users, "Broadcast!".to_string()).await?;
     /// ```
-    pub async fn push_to_users(&self, login_ids: Vec<String>, content: String) -> Result<(), SaTokenError> {
+    pub async fn push_to_users(
+        &self,
+        login_ids: Vec<String>,
+        content: String,
+    ) -> Result<(), SaTokenError> {
         for login_id in login_ids {
             self.push_to_user(&login_id, content.clone()).await?;
         }
@@ -519,7 +524,11 @@ impl OnlineManager {
     /// };
     /// manager.push_message_to_user("user123", message).await?;
     /// ```
-    pub async fn push_message_to_user(&self, login_id: &str, message: PushMessage) -> Result<(), SaTokenError> {
+    pub async fn push_message_to_user(
+        &self,
+        login_id: &str,
+        message: PushMessage,
+    ) -> Result<(), SaTokenError> {
         let pushers = self.pushers.read().await;
         for pusher in pushers.iter() {
             pusher.push(login_id, message.clone()).await?;
@@ -538,7 +547,11 @@ impl OnlineManager {
     /// ```rust,ignore
     /// manager.kick_out_notify("user123", "Duplicate login detected".to_string()).await?;
     /// ```
-    pub async fn kick_out_notify(&self, login_id: &str, reason: String) -> Result<(), SaTokenError> {
+    pub async fn kick_out_notify(
+        &self,
+        login_id: &str,
+        reason: String,
+    ) -> Result<(), SaTokenError> {
         // Create kick-out message | 创建踢出消息
         let message = PushMessage {
             message_id: uuid::Uuid::new_v4().to_string(),
@@ -550,7 +563,7 @@ impl OnlineManager {
 
         // Push notification | 推送通知
         self.push_message_to_user(login_id, message).await?;
-        
+
         // Mark user offline | 标记用户离线
         self.mark_offline_all(login_id).await;
         Ok(())
@@ -617,7 +630,8 @@ impl Default for InMemoryPusher {
 impl MessagePusher for InMemoryPusher {
     async fn push(&self, login_id: &str, message: PushMessage) -> Result<(), SaTokenError> {
         let mut messages = self.messages.write().await;
-        messages.entry(login_id.to_string())
+        messages
+            .entry(login_id.to_string())
             .or_insert_with(Vec::new)
             .push(message);
         Ok(())
@@ -631,7 +645,7 @@ mod tests {
     #[tokio::test]
     async fn test_online_manager() {
         let manager = OnlineManager::new();
-        
+
         let user = OnlineUser {
             login_id: "user1".to_string(),
             token: "token1".to_string(),
@@ -640,9 +654,9 @@ mod tests {
             last_activity: Utc::now(),
             metadata: HashMap::new(),
         };
-        
+
         manager.mark_online(user).await;
-        
+
         assert!(manager.is_online("user1").await);
         assert_eq!(manager.get_online_count().await, 1);
     }
@@ -650,7 +664,7 @@ mod tests {
     #[tokio::test]
     async fn test_mark_offline() {
         let manager = OnlineManager::new();
-        
+
         let user = OnlineUser {
             login_id: "user2".to_string(),
             token: "token2".to_string(),
@@ -659,10 +673,10 @@ mod tests {
             last_activity: Utc::now(),
             metadata: HashMap::new(),
         };
-        
+
         manager.mark_online(user).await;
         assert!(manager.is_online("user2").await);
-        
+
         manager.mark_offline("user2", "token2").await;
         assert!(!manager.is_online("user2").await);
     }
@@ -671,9 +685,9 @@ mod tests {
     async fn test_push_message() {
         let manager = OnlineManager::new();
         let pusher = Arc::new(InMemoryPusher::new());
-        
+
         manager.register_pusher(pusher.clone()).await;
-        
+
         let user = OnlineUser {
             login_id: "user3".to_string(),
             token: "token3".to_string(),
@@ -682,10 +696,13 @@ mod tests {
             last_activity: Utc::now(),
             metadata: HashMap::new(),
         };
-        
+
         manager.mark_online(user).await;
-        manager.push_to_user("user3", "Hello".to_string()).await.unwrap();
-        
+        manager
+            .push_to_user("user3", "Hello".to_string())
+            .await
+            .unwrap();
+
         let messages = pusher.get_messages("user3").await;
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].content, "Hello");
@@ -695,9 +712,9 @@ mod tests {
     async fn test_broadcast() {
         let manager = OnlineManager::new();
         let pusher = Arc::new(InMemoryPusher::new());
-        
+
         manager.register_pusher(pusher.clone()).await;
-        
+
         for i in 1..=3 {
             let user = OnlineUser {
                 login_id: format!("user{}", i),
@@ -709,9 +726,12 @@ mod tests {
             };
             manager.mark_online(user).await;
         }
-        
-        manager.broadcast("Broadcast message".to_string()).await.unwrap();
-        
+
+        manager
+            .broadcast("Broadcast message".to_string())
+            .await
+            .unwrap();
+
         for i in 1..=3 {
             let messages = pusher.get_messages(&format!("user{}", i)).await;
             assert_eq!(messages.len(), 1);
@@ -722,9 +742,9 @@ mod tests {
     async fn test_kick_out_notify() {
         let manager = OnlineManager::new();
         let pusher = Arc::new(InMemoryPusher::new());
-        
+
         manager.register_pusher(pusher.clone()).await;
-        
+
         let user = OnlineUser {
             login_id: "user4".to_string(),
             token: "token4".to_string(),
@@ -733,14 +753,17 @@ mod tests {
             last_activity: Utc::now(),
             metadata: HashMap::new(),
         };
-        
+
         manager.mark_online(user).await;
         assert!(manager.is_online("user4").await);
-        
-        manager.kick_out_notify("user4", "Kicked out".to_string()).await.unwrap();
-        
+
+        manager
+            .kick_out_notify("user4", "Kicked out".to_string())
+            .await
+            .unwrap();
+
         assert!(!manager.is_online("user4").await);
-        
+
         let messages = pusher.get_messages("user4").await;
         assert_eq!(messages.len(), 1);
         assert_eq!(messages[0].message_type, MessageType::KickOut);

@@ -107,10 +107,7 @@ impl HttpBasicTemplate {
     /// # Errors
     ///
     /// Returns `SaTokenError::NotHttpBasicAuth` if authentication fails.
-    pub fn check(
-        auth_header: Option<&str>,
-        expected_account: &str,
-    ) -> Result<(), SaTokenError> {
+    pub fn check(auth_header: Option<&str>, expected_account: &str) -> Result<(), SaTokenError> {
         let provided = Self::get_authorization_value(auth_header);
         match provided {
             Some(value) if ct_eq_str(&value, expected_account) => Ok(()),
@@ -231,7 +228,10 @@ impl HttpDigestTemplate {
             "{}:{}:{}",
             model.username, model.realm, model.password
         ));
-        let frag2 = format!("{}:{}:{}:{}", model.nonce, model.nc, model.cnonce, model.qop);
+        let frag2 = format!(
+            "{}:{}:{}:{}",
+            model.nonce, model.nc, model.cnonce, model.qop
+        );
         let frag3 = md5_hex(&format!("{}:{}", model.method, model.uri));
         md5_hex(&format!("{frag1}:{frag2}:{frag3}"))
     }
@@ -249,8 +249,8 @@ impl HttpDigestTemplate {
         username: &str,
         password: &str,
     ) -> Result<(), SaTokenError> {
-        let raw = Self::get_authorization_value(auth_header)
-            .ok_or(SaTokenError::NotHttpDigestAuth)?;
+        let raw =
+            Self::get_authorization_value(auth_header).ok_or(SaTokenError::NotHttpDigestAuth)?;
 
         let mut req_model = Self::parse_digest(&raw);
         // Fill in server-known values
@@ -377,10 +377,7 @@ mod tests {
     #[test]
     fn test_md5_hex() {
         assert_eq!(md5_hex(""), "d41d8cd98f00b204e9800998ecf8427e");
-        assert_eq!(
-            md5_hex("hello"),
-            "5d41402abc4b2a76b9719d911017c592"
-        );
+        assert_eq!(md5_hex("hello"), "5d41402abc4b2a76b9719d911017c592");
     }
 
     #[test]

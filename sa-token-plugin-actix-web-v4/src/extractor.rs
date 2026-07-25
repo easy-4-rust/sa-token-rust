@@ -2,9 +2,9 @@
 //
 //! Actix-web提取器
 
-use actix_web::{FromRequest, HttpRequest, HttpMessage, dev::Payload, error::ErrorUnauthorized};
-use std::future::{ready, Ready};
-use sa_token_core::{token::TokenValue, error::messages};
+use actix_web::{FromRequest, HttpMessage, HttpRequest, dev::Payload, error::ErrorUnauthorized};
+use sa_token_core::{error::messages, token::TokenValue};
+use std::future::{Ready, ready};
 
 /// Token 提取器 - 必须存在，否则返回错误
 pub struct SaTokenExtractor(pub TokenValue);
@@ -12,7 +12,7 @@ pub struct SaTokenExtractor(pub TokenValue);
 impl FromRequest for SaTokenExtractor {
     type Error = actix_web::Error;
     type Future = Ready<Result<Self, Self::Error>>;
-    
+
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         match req.extensions().get::<TokenValue>() {
             Some(token) => ready(Ok(SaTokenExtractor(token.clone()))),
@@ -30,7 +30,7 @@ pub struct OptionalSaTokenExtractor(pub Option<TokenValue>);
 impl FromRequest for OptionalSaTokenExtractor {
     type Error = actix_web::Error;
     type Future = Ready<Result<Self, Self::Error>>;
-    
+
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         let token = req.extensions().get::<TokenValue>().cloned();
         ready(Ok(OptionalSaTokenExtractor(token)))
@@ -43,7 +43,7 @@ pub struct LoginIdExtractor(pub String);
 impl FromRequest for LoginIdExtractor {
     type Error = actix_web::Error;
     type Future = Ready<Result<Self, Self::Error>>;
-    
+
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         match req.extensions().get::<String>() {
             Some(login_id) => ready(Ok(LoginIdExtractor(login_id.clone()))),
