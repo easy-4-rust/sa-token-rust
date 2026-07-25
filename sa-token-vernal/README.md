@@ -43,6 +43,14 @@ components.install(&mut application)?;
 let context = application.build()?;
 ```
 
+`VernalSaTokenConfigBinder` maps the immutable Vernal
+`ApplicationEnvironment` into Sa-Token's native `SaTokenConfigBuilder`.
+Properties use the `sa-token.*` prefix by default, for example
+`sa-token.timeout=7200` and `sa-token.token-style=random-64`. Missing properties
+keep Sa-Token's own defaults. Storage, listeners, manager construction, and
+runtime installation remain explicit Sa-Token responsibilities; the binder
+never creates process-global state and never includes secret values in errors.
+
 HTTP adapters use `Operation(path_template, http_method)`; Tonic uses
 `Operation(service_name, method_name)`. Install the framework's strict AOP
 entry so the owned `HttpRequestSnapshot` and request context reach the
@@ -97,6 +105,12 @@ HTTP Adapter 的操作身份是 `Operation(path_template, http_method)`，Tonic 
 保持 Sa-Token-Rust 的精确、全局 `*` 与 `orders:*` 前缀通配符语义。受保护的
 匿名调用返回 401，已登录但身份不足返回 403，权限数据源失败返回脱敏 500，原始
 错误只保留在服务端错误链。声明空要求时按 fail-closed 拒绝。
+
+`VernalSaTokenConfigBinder` 会把不可变的 Vernal `ApplicationEnvironment`
+映射到 Sa-Token 原生 `SaTokenConfigBuilder`。默认键前缀为 `sa-token.*`，例如
+`sa-token.timeout=7200` 和 `sa-token.token-style=random-64`；未声明的字段继续
+使用 Sa-Token 自己的默认值。Storage、Listener、Manager 构造和 Runtime 安装仍由
+Sa-Token 显式负责，绑定器不会创建进程级全局状态，也不会在错误中输出密钥值。
 
 Vernal API 仍为 `0.0.0-dev`，因此该桥目前保持实验状态且不发布，并把 Git 依赖
 固定到已经验证的 Vernal 提交。
