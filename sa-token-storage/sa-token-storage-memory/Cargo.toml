@@ -1,0 +1,19 @@
+[package]
+name = "sa-token-storage-memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "In-memory storage implementation for sa-token-rust"
+
+[dependencies]
+sa-token-adapter = { version = "0.1.18", path = "../../sa-token-adapter" }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }

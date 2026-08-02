@@ -22,4 +22,4 @@ proc-macro2 = "1.0"
 [dev-dependencies]
 tokio = { workspace = true }
 sa-token-core = { version = "0.1.18", path = "../sa-token-core" }
-sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage-memory" }
+sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage/sa-token-storage-memory" }

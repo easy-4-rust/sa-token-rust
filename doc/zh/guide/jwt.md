@@ -406,7 +406,7 @@ match jwt_manager.validate(&token) {
 cargo run --example jwt_example
 ```
 
-查看 `examples/jwt_example.rs` 获取全面的示例，包括：
+查看 `sa-token-examples/jwt_example.rs` 获取全面的示例，包括：
 - 独立 JWT 使用
 - 与 sa-token 集成
 - 令牌刷新

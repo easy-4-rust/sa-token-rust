@@ -376,7 +376,7 @@ docs/
 │   ├── authentication.md
 │   ├── authorization.md
 │   └── best-practices.md
-├── examples/               # 实战示例
+├── sa-token-examples/               # 实战示例
 │   ├── rest-api.md
 │   ├── microservices.md
 │   ├── sso.md

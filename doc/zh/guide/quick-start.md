@@ -310,30 +310,32 @@ sa-token-rust/
 │   └── util.rs                       # StpUtil（工具类）
 ├── sa-token-adapter/                 # 适配器接口（Storage、Request/Response）
 ├── sa-token-macro/                   # 过程宏（#[sa_check_login] 等）
-├── sa-token-storage-memory/          # 内存存储实现
-├── sa-token-storage-redis/           # Redis 存储实现
-├── sa-token-storage-database/        # 数据库存储实现
-├── sa-token-plugin-axum/             # Axum 框架集成（v08 绑定）
-├── sa-token-plugin-actix-web/        # Actix-web 门面 → v4/v5 绑定
-│   ├── sa-token-plugin-actix-web-core/   # 共享 Actix-web 核心（状态、适配器、错误）
-│   ├── sa-token-plugin-actix-web-v4/     # Actix-web 4.x 绑定
-│   └── sa-token-plugin-actix-web-v5/     # Actix-web 5.x 绑定（占位）
-├── sa-token-plugin-poem/             # Poem 框架集成
-├── sa-token-plugin-rocket/           # Rocket 门面 → v05 绑定
-│   ├── sa-token-plugin-rocket-core/  # 共享 Rocket 核心
-│   └── sa-token-plugin-rocket-v05/   # Rocket 0.5.x 绑定
-├── sa-token-plugin-warp/             # Warp 框架集成
-├── sa-token-plugin-salvo/            # Salvo 门面 → v079 绑定
-│   ├── sa-token-plugin-salvo-core/   # 共享 Salvo 核心
-│   └── sa-token-plugin-salvo-v079/   # Salvo 0.79.x 绑定
-├── sa-token-plugin-tide/             # Tide 框架集成
-├── sa-token-plugin-gotham/           # Gotham 门面 → v074 绑定
-│   ├── sa-token-plugin-gotham-core/  # 共享 Gotham 核心
-│   └── sa-token-plugin-gotham-v074/  # Gotham 0.7.x 绑定
-├── sa-token-plugin-ntex/             # Ntex 门面 → v212 绑定
-│   ├── sa-token-plugin-ntex-core/    # 共享 Ntex 核心
-│   └── sa-token-plugin-ntex-v212/    # Ntex 2.x 绑定
-└── examples/                         # 示例项目
+├── sa-token-storage/                 # 存储后端
+│   ├── sa-token-storage-memory/        # 内存存储实现
+│   ├── sa-token-storage-redis/         # Redis 存储实现
+│   └── sa-token-storage-database/      # 数据库存储实现
+├── sa-token-plugin/                  # Web 框架集成（21 个 crate）
+│   ├── sa-token-plugin-axum/         # Axum 框架集成（v08 绑定）
+│   ├── sa-token-plugin-actix-web/    # Actix-web 门面 → v4/v5 绑定
+│   │   ├── sa-token-plugin-actix-web-core/   # 共享 Actix-web 核心（状态、适配器、错误）
+│   │   ├── sa-token-plugin-actix-web-v4/     # Actix-web 4.x 绑定
+│   │   └── sa-token-plugin-actix-web-v5/     # Actix-web 5.x 绑定（占位）
+│   ├── sa-token-plugin-poem/         # Poem 框架集成
+│   ├── sa-token-plugin-rocket/       # Rocket 门面 → v05 绑定
+│   │   ├── sa-token-plugin-rocket-core/      # 共享 Rocket 核心
+│   │   └── sa-token-plugin-rocket-v05/       # Rocket 0.5.x 绑定
+│   ├── sa-token-plugin-warp/         # Warp 框架集成
+│   ├── sa-token-plugin-salvo/        # Salvo 门面 → v079 绑定
+│   │   ├── sa-token-plugin-salvo-core/       # 共享 Salvo 核心
+│   │   └── sa-token-plugin-salvo-v079/       # Salvo 0.79.x 绑定
+│   ├── sa-token-plugin-tide/         # Tide 框架集成
+│   ├── sa-token-plugin-gotham/       # Gotham 门面 → v074 绑定
+│   │   ├── sa-token-plugin-gotham-core/      # 共享 Gotham 核心
+│   │   └── sa-token-plugin-gotham-v074/      # Gotham 0.7.x 绑定
+│   └── sa-token-plugin-ntex/         # Ntex 门面 → v212 绑定
+│       ├── sa-token-plugin-ntex-core/        # 共享 Ntex 核心
+│       └── sa-token-plugin-ntex-v212/        # Ntex 2.x 绑定
+├── sa-token-examples/                         # 示例项目
 ```
 
 ---

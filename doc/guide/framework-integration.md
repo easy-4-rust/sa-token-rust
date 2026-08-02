@@ -102,7 +102,7 @@ HttpServer::new(move || {
 .run()
 .await
 
-// For a complete example, see examples/actix-web-example/
+// For a complete example, see sa-token-examples/actix-web-example/
 ```
 
 ---

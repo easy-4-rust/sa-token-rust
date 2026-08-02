@@ -310,30 +310,32 @@ sa-token-rust/
 │   └── util.rs                      # StpUtil (utility class)
 ├── sa-token-adapter/                # Adapter interfaces (Storage, Request/Response)
 ├── sa-token-macro/                  # Procedural macros (#[sa_check_login], etc.)
-├── sa-token-storage-memory/         # Memory storage implementation
-├── sa-token-storage-redis/          # Redis storage implementation
-├── sa-token-storage-database/       # Database storage implementation
-├── sa-token-plugin-axum/            # Axum framework integration (v08 binding)
-├── sa-token-plugin-actix-web/       # Actix-web facade → v4/v5 bindings
-│   ├── sa-token-plugin-actix-web-core/  # Shared Actix-web core (state, adapter, errors)
-│   ├── sa-token-plugin-actix-web-v4/    # Actix-web 4.x binding
-│   └── sa-token-plugin-actix-web-v5/    # Actix-web 5.x binding (placeholder)
-├── sa-token-plugin-poem/            # Poem framework integration
-├── sa-token-plugin-rocket/          # Rocket facade → v05 binding
-│   ├── sa-token-plugin-rocket-core/ # Shared Rocket core
-│   └── sa-token-plugin-rocket-v05/  # Rocket 0.5.x binding
-├── sa-token-plugin-warp/            # Warp framework integration
-├── sa-token-plugin-salvo/           # Salvo facade → v079 binding
-│   ├── sa-token-plugin-salvo-core/  # Shared Salvo core
-│   └── sa-token-plugin-salvo-v079/  # Salvo 0.79.x binding
-├── sa-token-plugin-tide/            # Tide framework integration
-├── sa-token-plugin-gotham/          # Gotham facade → v074 binding
-│   ├── sa-token-plugin-gotham-core/ # Shared Gotham core
-│   └── sa-token-plugin-gotham-v074/ # Gotham 0.7.x binding
-├── sa-token-plugin-ntex/            # Ntex facade → v212 binding
-│   ├── sa-token-plugin-ntex-core/   # Shared Ntex core
-│   └── sa-token-plugin-ntex-v212/   # Ntex 2.x binding
-└── examples/                        # Example projects
+├── sa-token-storage/                # Storage backends
+│   ├── sa-token-storage-memory/       # Memory storage implementation
+│   ├── sa-token-storage-redis/        # Redis storage implementation
+│   └── sa-token-storage-database/     # Database storage implementation
+├── sa-token-plugin/                 # Web framework integrations (21 crates)
+│   ├── sa-token-plugin-axum/        # Axum framework integration (v08 binding)
+│   ├── sa-token-plugin-actix-web/   # Actix-web facade → v4/v5 bindings
+│   │   ├── sa-token-plugin-actix-web-core/  # Shared Actix-web core (state, adapter, errors)
+│   │   ├── sa-token-plugin-actix-web-v4/    # Actix-web 4.x binding
+│   │   └── sa-token-plugin-actix-web-v5/    # Actix-web 5.x binding (placeholder)
+│   ├── sa-token-plugin-poem/        # Poem framework integration
+│   ├── sa-token-plugin-rocket/      # Rocket facade → v05 binding
+│   │   ├── sa-token-plugin-rocket-core/     # Shared Rocket core
+│   │   └── sa-token-plugin-rocket-v05/      # Rocket 0.5.x binding
+│   ├── sa-token-plugin-warp/        # Warp framework integration
+│   ├── sa-token-plugin-salvo/       # Salvo facade → v079 binding
+│   │   ├── sa-token-plugin-salvo-core/      # Shared Salvo core
+│   │   └── sa-token-plugin-salvo-v079/      # Salvo 0.79.x binding
+│   ├── sa-token-plugin-tide/        # Tide framework integration
+│   ├── sa-token-plugin-gotham/      # Gotham facade → v074 binding
+│   │   ├── sa-token-plugin-gotham-core/     # Shared Gotham core
+│   │   └── sa-token-plugin-gotham-v074/     # Gotham 0.7.x binding
+│   └── sa-token-plugin-ntex/        # Ntex facade → v212 binding
+│       ├── sa-token-plugin-ntex-core/       # Shared Ntex core
+│       └── sa-token-plugin-ntex-v212/       # Ntex 2.x binding
+├── sa-token-examples/                        # Example projects
 ```
 
 ---

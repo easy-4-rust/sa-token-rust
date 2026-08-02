@@ -407,7 +407,7 @@ Run the JWT example:
 cargo run --example jwt_example
 ```
 
-See `examples/jwt_example.rs` for comprehensive examples covering:
+See `sa-token-examples/jwt_example.rs` for comprehensive examples covering:
 - Standalone JWT usage
 - Integration with sa-token
 - Token refresh

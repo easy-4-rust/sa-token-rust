@@ -25,11 +25,12 @@ mvn -q -f "${java_repo}/sa-token-core/pom.xml" \
 
 core_jar="${java_repo}/sa-token-core/target/sa-token-core-1.45.0.jar"
 classpath="${core_jar}:$(<"${tmp_dir}/classpath.txt")"
+golden_dir="${repo_root}/sa-token-test/sa-token-integration-tests/tests/java_golden"
 javac -encoding UTF-8 \
     -cp "${classpath}" \
     -d "${tmp_dir}" \
-    "${repo_root}/tests/java_golden/SaTokenGoldenExporter.java"
+    "${golden_dir}/SaTokenGoldenExporter.java"
 java -cp "${tmp_dir}:${classpath}" SaTokenGoldenExporter "${actual_commit}" \
-    > "${repo_root}/tests/java_golden/sa_token_1_45_0.json"
+    > "${golden_dir}/sa_token_1_45_0.json"
 
-echo "Updated tests/java_golden/sa_token_1_45_0.json from ${actual_commit}"
+echo "Updated ${golden_dir}/sa_token_1_45_0.json from ${actual_commit}"

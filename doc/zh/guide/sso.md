@@ -239,7 +239,7 @@ match sso_server.validate_ticket(ticket_id, service).await {
 
 ### 完整示例
 
-查看 [sso_example.rs](https://github.com/sa-tokens/sa-token-rust/blob/main/examples/sso_example.rs) 获取完整的工作示例。
+查看 [sso_example.rs](https://github.com/sa-tokens/sa-token-rust/blob/main/sa-token-examples/sso_example.rs) 获取完整的工作示例。
 
 运行示例：
 ```bash
@@ -259,7 +259,7 @@ cargo run --example sso_example
 ## 📖 Additional Resources
 
 - [Main Documentation](/zh/guide/quick-start.md)
-- [Examples Directory](https://github.com/sa-tokens/sa-token-rust/blob/main/examples/)
+- [Examples Directory](https://github.com/sa-tokens/sa-token-rust/blob/main/sa-token-examples/)
 - [API Reference](/zh/guide/stp-util.md)
 
 ---

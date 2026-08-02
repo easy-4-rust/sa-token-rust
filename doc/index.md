@@ -34,19 +34,21 @@ sa-token-rust/
 ├── sa-token-core/                     # Core (Token, Session, Manager, Router)
 ├── sa-token-adapter/                  # Adapter interfaces (Storage, Request/Response)
 ├── sa-token-macro/                    # Proc macros (#[sa_check_login], etc.)
-├── sa-token-storage-memory/           # Memory storage
-├── sa-token-storage-redis/            # Redis storage (+ builder)
-├── sa-token-storage-database/         # Database storage (placeholder)
-├── sa-token-plugin-actix-web/         # Actix-web facade (v4 default)
-├── sa-token-plugin-axum/              # Axum integration (v8)
-├── sa-token-plugin-gotham/            # Gotham facade (v074 default)
-├── sa-token-plugin-ntex/              # Ntex facade (v212 default)
-├── sa-token-plugin-poem/              # Poem integration
-├── sa-token-plugin-rocket/            # Rocket facade (v05 default)
-├── sa-token-plugin-salvo/             # Salvo facade (v079 default)
-├── sa-token-plugin-tide/              # Tide integration
-├── sa-token-plugin-warp/              # Warp integration
-└── examples/                          # Example projects
+├── sa-token-storage/                  # Storage backends
+│   ├── sa-token-storage-memory/         # Memory storage
+│   ├── sa-token-storage-redis/          # Redis storage (+ builder)
+│   └── sa-token-storage-database/       # Database storage (placeholder)
+├── sa-token-plugin/                   # Web framework integrations
+│   ├── sa-token-plugin-actix-web/     # Actix-web facade (v4 default)
+│   ├── sa-token-plugin-axum/          # Axum integration (v8)
+│   ├── sa-token-plugin-gotham/        # Gotham facade (v074 default)
+│   ├── sa-token-plugin-ntex/          # Ntex facade (v212 default)
+│   ├── sa-token-plugin-poem/          # Poem integration
+│   ├── sa-token-plugin-rocket/        # Rocket facade (v05 default)
+│   ├── sa-token-plugin-salvo/         # Salvo facade (v079 default)
+│   ├── sa-token-plugin-tide/          # Tide integration
+│   └── sa-token-plugin-warp/          # Warp integration
+└── sa-token-examples/                          # Example projects
 ```
 
 > **Version-split**: Facade crates use Cargo features to select framework major version at compile time (`v4`/`v5`, `v05`, `v079`, etc.).

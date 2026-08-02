@@ -96,7 +96,7 @@ Complete walkthrough → [Main README — Quick Start](../README.md#-quick-start
 
 ### 💻 Code Examples
 
-All examples are located in the [`examples/`](../examples/) directory:
+All examples are located in the [`sa-token-examples/`](../sa-token-examples/) directory:
 
 | Example | Description |
 |---------|-------------|
@@ -233,7 +233,7 @@ Redis instance. Configure via `SaTokenConfig::builder().storage_key_prefix("myap
 - **Single Sign-On?** → [SSO Guide](./SSO_GUIDE.md#english)
 - **Multiple account systems / devices?** → [Multi-Account & Terminal Guide](./MULTI_ACCOUNT_TERMINAL.md#english)
 - **Error codes?** → [Error Reference](./ERROR_REFERENCE.md)
-- **Code examples?** → [Examples Directory](../examples/)
+- **Code examples?** → [Examples Directory](../sa-token-examples/)
 
 ---
 

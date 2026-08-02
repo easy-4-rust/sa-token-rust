@@ -38,16 +38,18 @@ sa-token-rust/
 ├── sa-token-core/              # 核心库（Token、Session、Manager）
 ├── sa-token-adapter/           # 适配器接口（Storage、Request/Response）
 ├── sa-token-macro/             # 过程宏（#[sa_check_login] 等）
-├── sa-token-storage-memory/    # 内存存储实现
-├── sa-token-storage-redis/     # Redis 存储实现
-├── sa-token-storage-database/  # 数据库存储实现
-├── sa-token-plugin-axum/       # Axum（默认 axum-08）
-├── sa-token-plugin-actix-web/  # Actix-web 门面（默认 v4；含 -core / -v4 / -v5）
-├── sa-token-plugin-rocket/     # Rocket 门面（默认 v05）
-├── sa-token-plugin-salvo/      # Salvo 门面（默认 v079）
-├── sa-token-plugin-ntex/       # Ntex 门面（默认 v212）
-├── sa-token-plugin-gotham/     # Gotham 门面（默认 v074）
-├── sa-token-plugin-poem/ …     # Poem、Warp、Tide 等一体化插件
+├── sa-token-storage/             # 存储后端
+│   ├── sa-token-storage-memory/    # 内存存储实现
+│   ├── sa-token-storage-redis/     # Redis 存储实现
+│   └── sa-token-storage-database/  # 数据库存储实现
+├── sa-token-plugin/           # Web 框架集成（21 个 crate）
+│   ├── sa-token-plugin-axum/       # Axum（默认 axum-08）
+│   ├── sa-token-plugin-actix-web/  # Actix-web 门面（默认 v4；含 -core / -v4 / -v5）
+│   ├── sa-token-plugin-rocket/     # Rocket 门面（默认 v05）
+│   ├── sa-token-plugin-salvo/      # Salvo 门面（默认 v079）
+│   ├── sa-token-plugin-ntex/       # Ntex 门面（默认 v212）
+│   ├── sa-token-plugin-gotham/     # Gotham 门面（默认 v074）
+│   └── …                           # Poem、Warp、Tide 等一体化插件
 └── ...
 ```
 
@@ -604,7 +606,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **JWT 指南**: 查看 [JWT_GUIDE_zh-CN.md](JWT_GUIDE_zh-CN.md)
 - **OAuth2 指南**: 查看 [OAUTH2_GUIDE_zh-CN.md](OAUTH2_GUIDE_zh-CN.md)
 - **事件监听指南**: 查看 [EVENT_LISTENER_zh-CN.md](EVENT_LISTENER_zh-CN.md)
-- **示例代码**: 查看 [examples](../examples/) 目录
+- **示例代码**: 查看 [examples](../sa-token-examples/) 目录
 
 ## 🤝 贡献
 

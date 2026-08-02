@@ -364,13 +364,13 @@ Run the complete example:
 cargo run --example oauth2_example
 ```
 
-View example code: `examples/oauth2_example.rs`
+View example code: `sa-token-examples/oauth2_example.rs`
 
 ## References
 
 - [OAuth 2.0 RFC 6749](https://tools.ietf.org/html/rfc6749)
 - [OAuth 2.0 Security Best Practices](https://tools.ietf.org/html/draft-ietf-oauth-security-topics)
-- [Example Code](https://github.com/sa-tokens/sa-token-rust/blob/main/examples/oauth2_example.rs)
+- [Example Code](https://github.com/sa-tokens/sa-token-rust/blob/main/sa-token-examples/oauth2_example.rs)
 
 ## Next Steps
 

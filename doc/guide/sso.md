@@ -244,7 +244,7 @@ match sso_server.validate_ticket(ticket_id, service).await {
 
 ### Complete Example
 
-See [sso_example.rs](https://github.com/sa-tokens/sa-token-rust/blob/main/examples/sso_example.rs) for a complete working example.
+See [sso_example.rs](https://github.com/sa-tokens/sa-token-rust/blob/main/sa-token-examples/sso_example.rs) for a complete working example.
 
 Run the example:
 ```bash
@@ -264,7 +264,7 @@ cargo run --example sso_example
 ## 📖 Additional Resources
 
 - [Main Documentation](/guide/quick-start.md)
-- [Examples Directory](https://github.com/sa-tokens/sa-token-rust/blob/main/examples/)
+- [Examples Directory](https://github.com/sa-tokens/sa-token-rust/blob/main/sa-token-examples/)
 - [API Reference](/guide/stp-util.md)
 
 ---

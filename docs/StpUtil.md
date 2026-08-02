@@ -484,6 +484,6 @@ let token = StpUtil::login("user_10001").await?;
 ## See Also
 
 - [Main Documentation](../README.md)
-- [Examples](../examples/)
+- [Examples](../sa-token-examples/)
 - [Web Framework Integration](../README.md#framework-integration-examples)
 

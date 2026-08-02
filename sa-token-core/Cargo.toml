@@ -37,7 +37,7 @@ sha2_010 = { package = "sha2", version = "0.10.9" }
 bcrypt = { workspace = true }
 
 [dev-dependencies]
-sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage-memory" }
+sa-token-storage-memory = { version = "0.1.18", path = "../sa-token-storage/sa-token-storage-memory" }
 tracing-subscriber = { workspace = true, features = ["fmt"] }
 criterion = { workspace = true }
 gungraun = { workspace = true }

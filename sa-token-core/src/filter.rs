@@ -103,13 +103,15 @@ impl SaFilterConfig {
 
     /// 添加拦截路由
     pub fn include(mut self, paths: &[&str]) -> Self {
-        self.include_list.extend(paths.iter().map(|s| s.to_string()));
+        self.include_list
+            .extend(paths.iter().map(|s| s.to_string()));
         self
     }
 
     /// 添加放行路由
     pub fn exclude(mut self, paths: &[&str]) -> Self {
-        self.exclude_list.extend(paths.iter().map(|s| s.to_string()));
+        self.exclude_list
+            .extend(paths.iter().map(|s| s.to_string()));
         self
     }
 
@@ -202,11 +204,15 @@ impl DefaultSaFilter {
 
 impl SaFilter for DefaultSaFilter {
     fn add_include(&mut self, paths: &[&str]) {
-        self.config.include_list.extend(paths.iter().map(|s| s.to_string()));
+        self.config
+            .include_list
+            .extend(paths.iter().map(|s| s.to_string()));
     }
 
     fn add_exclude(&mut self, paths: &[&str]) {
-        self.config.exclude_list.extend(paths.iter().map(|s| s.to_string()));
+        self.config
+            .exclude_list
+            .extend(paths.iter().map(|s| s.to_string()));
     }
 
     fn set_include_list(&mut self, paths: Vec<String>) {

@@ -50,19 +50,22 @@ sa-token-rust/
 │   └── util.rs                 # StpUtil（工具类）
 ├── sa-token-adapter/           # 适配器接口（Storage、Request/Response）
 ├── sa-token-macro/             # 过程宏（#[sa_check_login] 等）
-├── sa-token-storage-memory/    # 内存存储实现
-├── sa-token-storage-redis/     # Redis 存储实现
-├── sa-token-storage-database/  # 数据库存储实现（占位符）
-├── sa-token-plugin-axum/       # Axum 框架集成
-├── sa-token-plugin-actix-web/  # Actix-web 框架集成
-├── sa-token-plugin-poem/       # Poem 框架集成
-├── sa-token-plugin-rocket/     # Rocket 框架集成
-├── sa-token-plugin-warp/       # Warp 框架集成
-├── sa-token-plugin-salvo/      # Salvo 框架集成
-├── sa-token-plugin-tide/       # Tide 框架集成
-├── sa-token-plugin-gotham/     # Gotham 框架集成
-├── sa-token-plugin-ntex/       # Ntex 框架集成
-├── examples/                   # 示例项目
+├── sa-token-storage/             # 存储后端
+│   ├── sa-token-storage-memory/    # 内存存储实现
+│   ├── sa-token-storage-redis/     # Redis 存储实现
+│   └── sa-token-storage-database/  # 数据库存储实现（占位符）
+├── sa-token-plugin/           # Web 框架集成
+│   ├── sa-token-plugin-axum/       # Axum 框架集成
+│   ├── sa-token-plugin-actix-web/  # Actix-web 框架集成
+│   ├── sa-token-plugin-poem/       # Poem 框架集成
+│   ├── sa-token-plugin-rocket/     # Rocket 框架集成
+│   ├── sa-token-plugin-warp/       # Warp 框架集成
+│   ├── sa-token-plugin-salvo/      # Salvo 框架集成
+│   ├── sa-token-plugin-tide/       # Tide 框架集成
+│   ├── sa-token-plugin-gotham/     # Gotham 框架集成
+│   ├── sa-token-plugin-ntex/       # Ntex 框架集成
+│   └── ...                         # 21 个 crate：门面 + core + 各版本绑定
+├── sa-token-examples/                   # 示例项目
 │   ├── event_listener_example.rs      # 事件监听演示
 │   ├── jwt_example.rs                 # JWT 完整演示
 │   ├── token_styles_example.rs        # Token 风格演示
@@ -805,7 +808,7 @@ HttpServer::new(move || {
 .run()
 .await
 
-// 完整示例请参考 examples/actix-web-example/
+// 完整示例请参考 sa-token-examples/actix-web-example/
 ```
 
 ### Poem
@@ -902,7 +905,7 @@ warp::serve(routes)
   - [错误参考](docs/ERROR_REFERENCE.md) - 完整的错误类型文档（7 种语言）
 
 ### 示例代码
-- [示例目录](examples/) - 所有功能的完整示例
+- [示例目录](sa-token-examples/) - 所有功能的完整示例
   - `event_listener_example.rs` - 事件监听（包含 WebSocket 支持）
   - `jwt_example.rs` - JWT 生成和验证
   - `token_styles_example.rs` - 7 种 Token 生成风格

@@ -50,19 +50,22 @@ sa-token-rust/
 │   └── util.rs                 # StpUtil (utility class)
 ├── sa-token-adapter/           # Adapter interfaces (Storage, Request/Response)
 ├── sa-token-macro/             # Procedural macros (#[sa_check_login], etc.)
-├── sa-token-storage-memory/    # Memory storage implementation
-├── sa-token-storage-redis/     # Redis storage implementation
-├── sa-token-storage-database/  # Database storage implementation (placeholder)
-├── sa-token-plugin-axum/       # Axum framework integration
-├── sa-token-plugin-actix-web/  # Actix-web framework integration
-├── sa-token-plugin-poem/       # Poem framework integration
-├── sa-token-plugin-rocket/     # Rocket framework integration
-├── sa-token-plugin-warp/       # Warp framework integration
-├── sa-token-plugin-salvo/      # Salvo framework integration
-├── sa-token-plugin-tide/       # Tide framework integration
-├── sa-token-plugin-gotham/     # Gotham framework integration
-├── sa-token-plugin-ntex/       # Ntex framework integration
-├── examples/                   # Example projects
+├── sa-token-storage/             # Storage backends
+│   ├── sa-token-storage-memory/    # Memory storage implementation
+│   ├── sa-token-storage-redis/     # Redis storage implementation
+│   └── sa-token-storage-database/  # Database storage implementation (placeholder)
+├── sa-token-plugin/           # Web framework integrations
+│   ├── sa-token-plugin-axum/       # Axum framework integration
+│   ├── sa-token-plugin-actix-web/  # Actix-web framework integration
+│   ├── sa-token-plugin-poem/       # Poem framework integration
+│   ├── sa-token-plugin-rocket/     # Rocket framework integration
+│   ├── sa-token-plugin-warp/       # Warp framework integration
+│   ├── sa-token-plugin-salvo/      # Salvo framework integration
+│   ├── sa-token-plugin-tide/       # Tide framework integration
+│   ├── sa-token-plugin-gotham/     # Gotham framework integration
+│   ├── sa-token-plugin-ntex/       # Ntex framework integration
+│   └── ...                         # 21 crates: façade + core + per-version
+├── sa-token-examples/                   # Example projects
 │   ├── event_listener_example.rs      # Event listener demo
 │   ├── jwt_example.rs                 # JWT complete demo
 │   ├── token_styles_example.rs        # Token styles demo
@@ -788,7 +791,7 @@ HttpServer::new(move || {
 .run()
 .await
 
-// For a complete example, see examples/actix-web-example/
+// For a complete example, see sa-token-examples/actix-web-example/
 ```
 
 ### Poem
@@ -885,7 +888,7 @@ warp::serve(routes)
   - [Error Reference](docs/ERROR_REFERENCE.md) - Complete error types documentation (7 languages)
 
 ### Examples
-- [Examples Directory](examples/) - Working examples for all features
+- [Examples Directory](sa-token-examples/) - Working examples for all features
   - `event_listener_example.rs` - Event listener with WebSocket support
   - `jwt_example.rs` - JWT generation and validation
   - `token_styles_example.rs` - 7 token generation styles

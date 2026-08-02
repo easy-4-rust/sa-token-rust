@@ -488,7 +488,7 @@ let state = SaTokenState::builder()
 
 ## Complete Example
 
-See `examples/event_listener_example.rs` for a complete runnable example.
+See `sa-token-examples/event_listener_example.rs` for a complete runnable example.
 
 Run the example:
 

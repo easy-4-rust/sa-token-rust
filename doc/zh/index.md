@@ -35,19 +35,21 @@ sa-token-rust/
 ├── sa-token-core/                     # 核心库（Token、Session、Manager、Router）
 ├── sa-token-adapter/                  # 适配器接口（Storage、Request/Response）
 ├── sa-token-macro/                    # 过程宏（#[sa_check_login] 等）
-├── sa-token-storage-memory/           # 内存存储
-├── sa-token-storage-redis/            # Redis 存储（+ 构建器）
-├── sa-token-storage-database/         # 数据库存储（占位）
-├── sa-token-plugin-actix-web/         # Actix-web 门面（默认 v4）
-├── sa-token-plugin-axum/              # Axum 集成（v8）
-├── sa-token-plugin-gotham/            # Gotham 门面（默认 v074）
-├── sa-token-plugin-ntex/              # Ntex 门面（默认 v212）
-├── sa-token-plugin-poem/              # Poem 集成
-├── sa-token-plugin-rocket/            # Rocket 门面（默认 v05）
-├── sa-token-plugin-salvo/             # Salvo 门面（默认 v079）
-├── sa-token-plugin-tide/              # Tide 集成
-├── sa-token-plugin-warp/              # Warp 集成
-└── examples/                          # 示例项目
+├── sa-token-storage/                  # 存储后端
+│   ├── sa-token-storage-memory/         # 内存存储
+│   ├── sa-token-storage-redis/          # Redis 存储（+ 构建器）
+│   └── sa-token-storage-database/       # 数据库存储（占位）
+├── sa-token-plugin/                   # Web 框架集成
+│   ├── sa-token-plugin-actix-web/     # Actix-web 门面（默认 v4）
+│   ├── sa-token-plugin-axum/          # Axum 集成（v8）
+│   ├── sa-token-plugin-gotham/        # Gotham 门面（默认 v074）
+│   ├── sa-token-plugin-ntex/          # Ntex 门面（默认 v212）
+│   ├── sa-token-plugin-poem/          # Poem 集成
+│   ├── sa-token-plugin-rocket/        # Rocket 门面（默认 v05）
+│   ├── sa-token-plugin-salvo/         # Salvo 门面（默认 v079）
+│   ├── sa-token-plugin-tide/          # Tide 集成
+│   └── sa-token-plugin-warp/          # Warp 集成
+├── sa-token-examples/                          # 示例项目
 ```
 
 > **版本分离**：门面 crate 通过 Cargo features 在编译时选择框架大版本（`v4`/`v5`、`v05`、`v079` 等）。

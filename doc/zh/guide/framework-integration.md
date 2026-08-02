@@ -102,7 +102,7 @@ HttpServer::new(move || {
 .run()
 .await
 
-// 完整示例请参考 examples/actix-web-example/
+// 完整示例请参考 sa-token-examples/actix-web-example/
 ```
 
 ---

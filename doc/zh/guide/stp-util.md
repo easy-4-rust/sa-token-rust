@@ -683,6 +683,6 @@ let token = StpUtil::login("user_10001").await?;
 ## 另见
 
 - [首页](/zh/)
-- [示例](https://github.com/sa-tokens/sa-token-rust/blob/main/examples/)
+- [示例](https://github.com/sa-tokens/sa-token-rust/blob/main/sa-token-examples/)
 - [Web 框架集成](/zh/guide/framework-integration)
 

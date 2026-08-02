@@ -96,7 +96,7 @@ use sa_token_plugin_axum::*;          // Axum — 或 sa_token_plugin_actix_web 
 
 ### 💻 代码示例
 
-所有示例位于 [`examples/`](../examples/) 目录：
+所有示例位于 [`sa-token-examples/`](../sa-token-examples/) 目录：
 
 | 示例 | 说明 |
 |---------|-------------|
@@ -232,7 +232,7 @@ sa-token-plugin-axum = { version = "0.1.18", features = ["redis"] }
 - **单点登录？** → [SSO 指南](./SSO_GUIDE.md#中文)
 - **多账号体系 / 多设备？** → [多账号与终端指南](./MULTI_ACCOUNT_TERMINAL.md#中文)
 - **错误代码？** → [错误参考手册](./ERROR_REFERENCE.md)
-- **代码示例？** → [示例目录](../examples/)
+- **代码示例？** → [示例目录](../sa-token-examples/)
 
 ---
 

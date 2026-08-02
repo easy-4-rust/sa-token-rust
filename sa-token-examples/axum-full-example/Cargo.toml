@@ -1,0 +1,25 @@
+[package]
+name = "axum-full-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# sa-token 插件（包含所有依赖）
+sa-token-plugin-axum = { path = "../../sa-token-plugin/sa-token-plugin-axum" }
+
+# Web 框架
+axum = "0.8.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["trace"] }
+
+# 序列化
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 日志
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 其他
+anyhow = "1.0"

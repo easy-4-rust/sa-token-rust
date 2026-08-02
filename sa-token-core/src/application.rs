@@ -55,7 +55,10 @@ impl SaApplication {
 
     /// 获取存储键前缀
     fn key_prefix(&self) -> String {
-        format!("{}application:", self.runtime.manager().config.storage_key_prefix)
+        format!(
+            "{}application:",
+            self.runtime.manager().config.storage_key_prefix
+        )
     }
 
     /// 拼接存储键
@@ -66,13 +69,16 @@ impl SaApplication {
     /// 取值（对应 Java `SaApplication.get(key)`）
     pub async fn get(&self, key: &str) -> Result<Option<Value>, SaTokenError> {
         let storage_key = self.splicing_key(key);
-        let result = self.storage().get(&storage_key).await
+        let result = self
+            .storage()
+            .get(&storage_key)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         match result {
             Some(s) => {
-                let value: Value = serde_json::from_str(&s)
-                    .map_err(SaTokenError::SerializationError)?;
+                let value: Value =
+                    serde_json::from_str(&s).map_err(SaTokenError::SerializationError)?;
                 Ok(Some(value))
             }
             None => Ok(None),
@@ -92,10 +98,11 @@ impl SaApplication {
         ttl: Option<Duration>,
     ) -> Result<(), SaTokenError> {
         let storage_key = self.splicing_key(key);
-        let json_str = serde_json::to_string(value)
-            .map_err(SaTokenError::SerializationError)?;
+        let json_str = serde_json::to_string(value).map_err(SaTokenError::SerializationError)?;
 
-        self.storage().set(&storage_key, &json_str, ttl).await
+        self.storage()
+            .set(&storage_key, &json_str, ttl)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         Ok(())
@@ -104,7 +111,9 @@ impl SaApplication {
     /// 删值（对应 Java `SaApplication.delete(key)`）
     pub async fn delete(&self, key: &str) -> Result<(), SaTokenError> {
         let storage_key = self.splicing_key(key);
-        self.storage().delete(&storage_key).await
+        self.storage()
+            .delete(&storage_key)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         Ok(())
@@ -114,7 +123,10 @@ impl SaApplication {
     pub async fn keys(&self) -> Result<Vec<String>, SaTokenError> {
         let prefix = self.key_prefix();
         let pattern = format!("{}*", prefix);
-        let all_keys = self.storage().keys(&pattern).await
+        let all_keys = self
+            .storage()
+            .keys(&pattern)
+            .await
             .map_err(|e| SaTokenError::StorageError(e.to_string()))?;
 
         // 裁减掉固定前缀，保留 key 名称

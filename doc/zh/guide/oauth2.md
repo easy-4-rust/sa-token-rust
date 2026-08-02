@@ -515,7 +515,7 @@ match oauth2.exchange_code_for_token(&code, &client_id, &client_secret, &redirec
 cargo run --example oauth2_example
 ```
 
-查看示例代码：`examples/oauth2_example.rs`
+查看示例代码：`sa-token-examples/oauth2_example.rs`
 
 ## 常见问题
 
@@ -553,7 +553,7 @@ let oauth2 = OAuth2Manager::new(storage)
 
 - [OAuth 2.0 RFC 6749](https://tools.ietf.org/html/rfc6749)
 - [OAuth 2.0 Security Best Practices](https://tools.ietf.org/html/draft-ietf-oauth-security-topics)
-- [示例代码](https://github.com/sa-tokens/sa-token-rust/blob/main/examples/oauth2_example.rs)
+- [示例代码](https://github.com/sa-tokens/sa-token-rust/blob/main/sa-token-examples/oauth2_example.rs)
 
 ## 下一步
 

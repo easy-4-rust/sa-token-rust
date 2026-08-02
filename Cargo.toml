@@ -13,12 +13,12 @@ description = "A powerful Rust authentication and authorization framework"
 
 [dependencies]
 sa-token-core = { version = "0.1.18", path = "./sa-token-core" }
-sa-token-storage-memory = { version = "0.1.18", path = "./sa-token-storage-memory" }
-sa-token-plugin-apikey = { version = "0.1.18", path = "./sa_token_plugin_apikey", optional = true }
-sa-token-plugin-jwt = { version = "0.1.18", path = "./sa_token_plugin_jwt", optional = true }
-sa-token-plugin-oauth2 = { version = "0.1.18", path = "./sa_token_plugin_oauth2", optional = true }
-sa-token-plugin-sso = { version = "0.1.18", path = "./sa_token_plugin_sso", optional = true }
-sa-token-plugin-observability = { version = "0.1.18", path = "./sa_token_plugin_observability", optional = true }
+sa-token-storage-memory = { version = "0.1.18", path = "./sa-token-storage/sa-token-storage-memory" }
+sa-token-plugin-apikey = { version = "0.1.18", path = "./sa-token-plugin/sa-token-plugin-apikey", optional = true }
+sa-token-plugin-jwt = { version = "0.1.18", path = "./sa-token-plugin/sa-token-plugin-jwt", optional = true }
+sa-token-plugin-oauth2 = { version = "0.1.18", path = "./sa-token-plugin/sa-token-plugin-oauth2", optional = true }
+sa-token-plugin-sso = { version = "0.1.18", path = "./sa-token-plugin/sa-token-plugin-sso", optional = true }
+sa-token-plugin-observability = { version = "0.1.18", path = "./sa-token-plugin/sa-token-plugin-observability", optional = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
@@ -36,75 +36,75 @@ security-plugins = ["plugin-apikey", "plugin-jwt", "plugin-oauth2", "plugin-sso"
 
 [[example]]
 name = "event_listener_example"
-path = "examples/event_listener_example.rs"
+path = "sa-token-examples/event_listener_example.rs"
 
 [[example]]
 name = "jwt_example"
-path = "examples/jwt_example.rs"
+path = "sa-token-examples/jwt_example.rs"
 
 [[example]]
 name = "token_styles_example"
-path = "examples/token_styles_example.rs"
+path = "sa-token-examples/token_styles_example.rs"
 
 [[example]]
 name = "security_features_example"
-path = "examples/security_features_example.rs"
+path = "sa-token-examples/security_features_example.rs"
 
 [[example]]
 name = "oauth2_example"
-path = "examples/oauth2_example.rs"
+path = "sa-token-examples/oauth2_example.rs"
 
 [[example]]
 name = "websocket_online_example"
-path = "examples/websocket_online_example.rs"
+path = "sa-token-examples/websocket_online_example.rs"
 
 [[example]]
 name = "distributed_session_example"
-path = "examples/distributed_session_example.rs"
+path = "sa-token-examples/distributed_session_example.rs"
 
 [[example]]
 name = "sso_example"
-path = "examples/sso_example.rs"
+path = "sa-token-examples/sso_example.rs"
 
 [workspace]
 members = [
-    "sa-token-integration-tests",
+    "sa-token-test/sa-token-integration-tests",
     "sa-token-core",
     "sa-token-adapter",
     "sa-token-macro",
-    "sa-token-storage-memory",
-    "sa-token-storage-redis",
-    "sa-token-storage-database",
-    "sa_token_plugin_apikey",
-    "sa_token_plugin_jwt",
-    "sa_token_plugin_oauth2",
-    "sa_token_plugin_sso",
-    "sa_token_plugin_observability",
+    "sa-token-storage/sa-token-storage-memory",
+    "sa-token-storage/sa-token-storage-redis",
+    "sa-token-storage/sa-token-storage-database",
+    "sa-token-plugin/sa-token-plugin-apikey",
+    "sa-token-plugin/sa-token-plugin-jwt",
+    "sa-token-plugin/sa-token-plugin-oauth2",
+    "sa-token-plugin/sa-token-plugin-sso",
+    "sa-token-plugin/sa-token-plugin-observability",
     "sa_token_diagnostics",
-    "sa-token-performance-tests",
-    "sa-token-plugin-axum",
-    "sa-token-plugin-actix-web",
-    "sa-token-plugin-actix-web-core",
-    "sa-token-plugin-actix-web-v4",
-    "sa-token-plugin-actix-web-v5",
-    "sa-token-plugin-rocket",
-    "sa-token-plugin-rocket-core",
-    "sa-token-plugin-rocket-v05",
-    "sa-token-plugin-warp",
-    "sa-token-plugin-poem",
-    "sa-token-plugin-salvo",
-    "sa-token-plugin-salvo-core",
-    "sa-token-plugin-salvo-v079",
-    "sa-token-plugin-tide",
-    "sa-token-plugin-gotham",
-    "sa-token-plugin-gotham-core",
-    "sa-token-plugin-gotham-v074",
-    "sa-token-plugin-ntex",
-    "sa-token-plugin-ntex-core",
-    "sa-token-plugin-ntex-v212",
-    "sa-token-plugin-tonic",
+    "sa-token-test/sa-token-performance-tests",
+    "sa-token-plugin/sa-token-plugin-axum",
+    "sa-token-plugin/sa-token-plugin-actix-web",
+    "sa-token-plugin/sa-token-plugin-actix-web-core",
+    "sa-token-plugin/sa-token-plugin-actix-web-v4",
+    "sa-token-plugin/sa-token-plugin-actix-web-v5",
+    "sa-token-plugin/sa-token-plugin-rocket",
+    "sa-token-plugin/sa-token-plugin-rocket-core",
+    "sa-token-plugin/sa-token-plugin-rocket-v05",
+    "sa-token-plugin/sa-token-plugin-warp",
+    "sa-token-plugin/sa-token-plugin-poem",
+    "sa-token-plugin/sa-token-plugin-salvo",
+    "sa-token-plugin/sa-token-plugin-salvo-core",
+    "sa-token-plugin/sa-token-plugin-salvo-v079",
+    "sa-token-plugin/sa-token-plugin-tide",
+    "sa-token-plugin/sa-token-plugin-gotham",
+    "sa-token-plugin/sa-token-plugin-gotham-core",
+    "sa-token-plugin/sa-token-plugin-gotham-v074",
+    "sa-token-plugin/sa-token-plugin-ntex",
+    "sa-token-plugin/sa-token-plugin-ntex-core",
+    "sa-token-plugin/sa-token-plugin-ntex-v212",
+    "sa-token-plugin/sa-token-plugin-tonic",
     "sa-token-vernal",
-    "examples/tonic-full-example",
+    "sa-token-examples/tonic-full-example",
 ]
 
 # Examples are excluded from default workspace build to reduce warnings
@@ -114,10 +114,9 @@ members = [
 #   cargo build -p actix-web-example
 #   cargo build -p tonic-full-example
 exclude = [
-    "examples/axum-full-example",
-    "examples/poem-full-example",
-    "examples/actix-web-example",
-    "examples/tonic-full-example",
+    "sa-token-examples/axum-full-example",
+    "sa-token-examples/poem-full-example",
+    "sa-token-examples/actix-web-example",
 ]
 
 resolver = "2"
@@ -188,35 +187,35 @@ regex = "1.12.3"
 sa-token-core = { path = "sa-token-core" }
 sa-token-adapter = { path = "sa-token-adapter" }
 sa-token-macro = { path = "sa-token-macro" }
-sa-token-storage-memory = { path = "sa-token-storage-memory" }
-sa-token-storage-redis = { path = "sa-token-storage-redis" }
-sa-token-storage-database = { path = "sa-token-storage-database" }
-sa-token-plugin-actix-web = { path = "sa-token-plugin-actix-web" }
-sa-token-plugin-actix-web-core = { path = "sa-token-plugin-actix-web-core" }
-sa-token-plugin-actix-web-v4 = { path = "sa-token-plugin-actix-web-v4" }
-sa-token-plugin-actix-web-v5 = { path = "sa-token-plugin-actix-web-v5" }
-sa-token-plugin-axum = { path = "sa-token-plugin-axum" }
-sa-token-plugin-gotham = { path = "sa-token-plugin-gotham" }
-sa-token-plugin-gotham-core = { path = "sa-token-plugin-gotham-core" }
-sa-token-plugin-gotham-v074 = { path = "sa-token-plugin-gotham-v074" }
-sa-token-plugin-ntex = { path = "sa-token-plugin-ntex" }
-sa-token-plugin-ntex-core = { path = "sa-token-plugin-ntex-core" }
-sa-token-plugin-ntex-v212 = { path = "sa-token-plugin-ntex-v212" }
-sa-token-plugin-poem = { path = "sa-token-plugin-poem" }
-sa-token-plugin-rocket = { path = "sa-token-plugin-rocket" }
-sa-token-plugin-rocket-core = { path = "sa-token-plugin-rocket-core" }
-sa-token-plugin-rocket-v05 = { path = "sa-token-plugin-rocket-v05" }
-sa-token-plugin-salvo = { path = "sa-token-plugin-salvo" }
-sa-token-plugin-salvo-core = { path = "sa-token-plugin-salvo-core" }
-sa-token-plugin-salvo-v079 = { path = "sa-token-plugin-salvo-v079" }
-sa-token-plugin-tide = { path = "sa-token-plugin-tide" }
-sa-token-plugin-warp = { path = "sa-token-plugin-warp" }
-sa-token-plugin-tonic = { path = "sa-token-plugin-tonic" }
-sa-token-plugin-apikey = { path = "sa_token_plugin_apikey" }
-sa-token-plugin-jwt = { path = "sa_token_plugin_jwt" }
-sa-token-plugin-oauth2 = { path = "sa_token_plugin_oauth2" }
-sa-token-plugin-sso = { path = "sa_token_plugin_sso" }
-sa-token-plugin-observability = { path = "sa_token_plugin_observability" }
+sa-token-storage-memory = { path = "sa-token-storage/sa-token-storage-memory" }
+sa-token-storage-redis = { path = "sa-token-storage/sa-token-storage-redis" }
+sa-token-storage-database = { path = "sa-token-storage/sa-token-storage-database" }
+sa-token-plugin-actix-web = { path = "sa-token-plugin/sa-token-plugin-actix-web" }
+sa-token-plugin-actix-web-core = { path = "sa-token-plugin/sa-token-plugin-actix-web-core" }
+sa-token-plugin-actix-web-v4 = { path = "sa-token-plugin/sa-token-plugin-actix-web-v4" }
+sa-token-plugin-actix-web-v5 = { path = "sa-token-plugin/sa-token-plugin-actix-web-v5" }
+sa-token-plugin-axum = { path = "sa-token-plugin/sa-token-plugin-axum" }
+sa-token-plugin-gotham = { path = "sa-token-plugin/sa-token-plugin-gotham" }
+sa-token-plugin-gotham-core = { path = "sa-token-plugin/sa-token-plugin-gotham-core" }
+sa-token-plugin-gotham-v074 = { path = "sa-token-plugin/sa-token-plugin-gotham-v074" }
+sa-token-plugin-ntex = { path = "sa-token-plugin/sa-token-plugin-ntex" }
+sa-token-plugin-ntex-core = { path = "sa-token-plugin/sa-token-plugin-ntex-core" }
+sa-token-plugin-ntex-v212 = { path = "sa-token-plugin/sa-token-plugin-ntex-v212" }
+sa-token-plugin-poem = { path = "sa-token-plugin/sa-token-plugin-poem" }
+sa-token-plugin-rocket = { path = "sa-token-plugin/sa-token-plugin-rocket" }
+sa-token-plugin-rocket-core = { path = "sa-token-plugin/sa-token-plugin-rocket-core" }
+sa-token-plugin-rocket-v05 = { path = "sa-token-plugin/sa-token-plugin-rocket-v05" }
+sa-token-plugin-salvo = { path = "sa-token-plugin/sa-token-plugin-salvo" }
+sa-token-plugin-salvo-core = { path = "sa-token-plugin/sa-token-plugin-salvo-core" }
+sa-token-plugin-salvo-v079 = { path = "sa-token-plugin/sa-token-plugin-salvo-v079" }
+sa-token-plugin-tide = { path = "sa-token-plugin/sa-token-plugin-tide" }
+sa-token-plugin-warp = { path = "sa-token-plugin/sa-token-plugin-warp" }
+sa-token-plugin-tonic = { path = "sa-token-plugin/sa-token-plugin-tonic" }
+sa-token-plugin-apikey = { path = "sa-token-plugin/sa-token-plugin-apikey" }
+sa-token-plugin-jwt = { path = "sa-token-plugin/sa-token-plugin-jwt" }
+sa-token-plugin-oauth2 = { path = "sa-token-plugin/sa-token-plugin-oauth2" }
+sa-token-plugin-sso = { path = "sa-token-plugin/sa-token-plugin-sso" }
+sa-token-plugin-observability = { path = "sa-token-plugin/sa-token-plugin-observability" }
 
 [profile.profiling]
 inherits = "release"

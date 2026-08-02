@@ -1,0 +1,28 @@
+[package]
+name = "sa-token-plugin-observability"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Privacy-safe tracing, metrics and runtime controls for sa-token-rust"
+
+[dependencies]
+sa-token-core = { version = "0.1.18", path = "../../sa-token-core" }
+sa-token-adapter = { version = "0.1.18", path = "../../sa-token-adapter" }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+metrics = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+tracing-opentelemetry = { workspace = true, optional = true }
+
+[dev-dependencies]
+sa-token-storage-memory = { version = "0.1.18", path = "../../sa-token-storage/sa-token-storage-memory" }
+tokio = { workspace = true }
+metrics-util = { workspace = true }
+
+[features]
+default = ["metrics", "reload"]
+metrics = ["dep:metrics", "sa-token-core/metrics"]
+reload = ["dep:tracing-subscriber"]
+otel = ["dep:tracing-opentelemetry"]
